@@ -1,4 +1,4 @@
-# Feature ledger — Rail & Ledger POS
+# Feature ledger — Light POS
 
 Completion status: **all rows verified** on 2 September 2026. All identities, figures, payments, QR payloads, and operational records are fictional sample data. State persists in browser `localStorage`; **Reset demo data** restores fixtures. No backend was added.
 
