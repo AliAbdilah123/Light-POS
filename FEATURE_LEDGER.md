@@ -9,6 +9,9 @@ Completion status: **all rows verified** on 2 September 2026. All identities, fi
 | Business switcher & aggregate | Global; `/admin/dashboard` | All-business aggregate and individual selection; admin defaults to all | Chromium screenshot inspected: 3 businesses, Rp54.050.000 aggregate |
 | Seats / tables | `/seats` | Word/symbol/color statuses, selection, linked-order detail, persisted status mutation | Chromium route at 5 widths; zero overflow/errors |
 | Global orders | `/orders`, `/orders/:id` | Business-aware search/filter/detail/status progression | Chromium route at 5 widths; lifecycle unit test passed |
+| Header messages panel | Global `AppShell`; `/cashier/dashboard` | Mail trigger with persisted unread badge/count; accessible sender/text/time panel; mark read; close button/outside/Escape; exact “Show all messages” cashier-dashboard link | Focused RTL RED/GREEN workflow passed |
+| Named orders | `/cashier/order`, `/orders` | Optional visible trimmed order name persists on paid/held/open orders, clears after save/payment, restores on resume, and appears in list/detail/search | Focused RTL RED/GREEN paid and held workflows passed |
+| Open and resumable orders | `/cashier/order`, `/orders` | Dedicated unpaid Open save with no payment, local persistence, Orders status/filter support, safe lifecycle progression, and compact access to every Held/Open order | Focused RTL + domain RED/GREEN workflows passed |
 | Cashier dashboard | `/cashier/dashboard` | Active/upcoming shifts, money/orders/hours, manager/admin messages with persisted read state | Chromium tablet/mobile screenshots inspected |
 | Fast order entry | `/cashier/order` | Category/search/availability, add/quantity/remove, dine-in/takeaway/delivery, table, modifiers/notes, hold/resume | RTL rendered workflow and Chromium order workflow passed |
 | Totals / cash / receipt / history | `/cashier/order`, `/orders` | Fixed calculation, 10% sample tax, cash completion, receipt, persisted order history | Calculation fixtures and rendered checkout test passed |
@@ -59,3 +62,10 @@ Completion status: **all rows verified** on 2 September 2026. All identities, fi
 - Authorization is represented through frontend navigation/action visibility; it is not a server-side security boundary.
 - Audit history demonstrates traceable UX but is not tamper-proof append-only storage.
 - Inventory movements, insights, attendance, receipts, cash drawer, printing, schedules, concurrency, and offline reconciliation are illustrative local records. Production versions require backend services and the product-plan implementation gate.
+
+## Ordered TDD verification — 12 September 2026
+
+- Header messages RED: `npm test -- src/App.test.tsx -t "opens header messages"` — expected failure, missing “Messages (2 unread)” button. GREEN: same command — 1 passed.
+- Order name RED: `npm test -- src/App.test.tsx -t "order name"` — expected failure, 2 tests missing the “Order name” field. GREEN: same command — 2 passed.
+- Open orders RED: `npm test -- src/App.test.tsx src/domain.test.ts -t "open order"` — expected failures, missing “Open order” action and `nextStatus('Open')` returning `Open`. GREEN: same command — 2 passed.
+- Final `npm test` — PASS: 2 files, 15 tests. `npm run lint` — PASS. `npm run typecheck` — PASS. `npm run build -- --base=/projects/light-pos/` — PASS: 1,601 modules transformed; production bundle emitted.
