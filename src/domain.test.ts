@@ -15,6 +15,7 @@ describe('menu variations',()=>{
 });
 describe('role capabilities',()=>{
   it('gives admin the cashier and manager capability union',()=>{expect(can('admin','createOrder')).toBe(true);expect(can('admin','manageExpenses')).toBe(true);expect(can('admin','manageCatalog')).toBe(true)});
+  it('gives superadmin the same reusable admin capabilities',()=>{expect(can('superadmin','createOrder')).toBe(true);expect(can('superadmin','manageExpenses')).toBe(true);expect(can('superadmin','manageCatalog')).toBe(true);expect(can('superadmin','adminDashboard')).toBe(true)});
   it('keeps existing roles scoped',()=>{expect(can('cashier','createOrder')).toBe(true);expect(can('cashier','manageExpenses')).toBe(false);expect(can('manager','manageExpenses')).toBe(true);expect(can('manager','manageCatalog')).toBe(false)});
   it('gives kitchen and display least privilege groundwork',()=>{expect(can('kitchen','viewKitchen')).toBe(true);expect(can('display','viewDisplay')).toBe(true);for(const role of ['kitchen','display'] as const){expect(can(role,'createOrder')).toBe(false);expect(can(role,'manageExpenses')).toBe(false);expect(can(role,'manageCatalog')).toBe(false)}});
 });

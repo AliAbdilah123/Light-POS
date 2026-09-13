@@ -1,22 +1,25 @@
 # Development test credentials
 
-These fictional accounts are enabled when `NODE_ENV` is not `production`. Passwords can be overridden with the matching variables in `.env`; normal startup creates missing accounts but never changes an existing password.
+These fictional accounts all use the development password `light-pos-demo`. Override it for all seed accounts with `POS_SEED_PASSWORD`; normal startup creates missing accounts but never changes an existing password hash.
 
 | Scope | Role | Username | Development password |
 | --- | --- | --- | --- |
-| Global | Admin | `admin` | `light-pos-admin` |
-| Harbor | Cashier | `cashier.harbor` | `light-pos-cashier.harbor` |
-| Harbor | Manager | `manager.harbor` | `light-pos-manager.harbor` |
-| Harbor | Kitchen | `kitchen.harbor` | `light-pos-kitchen.harbor` |
-| Harbor | Display | `display.harbor` | `light-pos-display.harbor` |
-| Garden | Cashier | `cashier.garden` | `light-pos-cashier.garden` |
-| Garden | Manager | `manager.garden` | `light-pos-manager.garden` |
-| Garden | Kitchen | `kitchen.garden` | `light-pos-kitchen.garden` |
-| Garden | Display | `display.garden` | `light-pos-display.garden` |
-| North | Cashier | `cashier.north` | `light-pos-cashier.north` |
-| North | Manager | `manager.north` | `light-pos-manager.north` |
-| North | Kitchen | `kitchen.north` | `light-pos-kitchen.north` |
-| North | Display | `display.north` | `light-pos-display.north` |
-| Harbor + Garden | Manager | `manager.multi` | `light-pos-manager.multi` |
+| Global | Superadmin | `superadmin` | `light-pos-demo` |
+| Harbor | Admin | `admin.harbor` | `light-pos-demo` |
+| Harbor | Cashier | `cashier.harbor` | `light-pos-demo` |
+| Harbor | Manager | `manager.harbor` | `light-pos-demo` |
+| Harbor | Kitchen | `kitchen.harbor` | `light-pos-demo` |
+| Harbor | Display | `display.harbor` | `light-pos-demo` |
+| Garden | Admin | `admin.garden` | `light-pos-demo` |
+| Garden | Cashier | `cashier.garden` | `light-pos-demo` |
+| Garden | Manager | `manager.garden` | `light-pos-demo` |
+| Garden | Kitchen | `kitchen.garden` | `light-pos-demo` |
+| Garden | Display | `display.garden` | `light-pos-demo` |
+| North | Admin | `admin.north` | `light-pos-demo` |
+| North | Cashier | `cashier.north` | `light-pos-demo` |
+| North | Manager | `manager.north` | `light-pos-demo` |
+| North | Kitchen | `kitchen.north` | `light-pos-demo` |
+| North | Display | `display.north` | `light-pos-demo` |
+| Harbor + Garden | Manager | `manager.multi` | `light-pos-demo` |
 
-Production refuses to create any missing account unless its corresponding `POS_*_PASSWORD` is present and at least 12 characters. Passwords, salts, and hashes are never returned by the API or rendered in the UI.
+Production refuses to create missing seed accounts unless `POS_SEED_PASSWORD` is present and at least 12 characters. Passwords, salts, and hashes are never returned by the API or rendered in the UI.

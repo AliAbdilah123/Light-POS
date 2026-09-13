@@ -1,7 +1,8 @@
-export type Role='cashier'|'manager'|'admin'|'kitchen'|'display'; export type DemoMode='ready'|'loading'|'empty'|'error';
+export type Role='cashier'|'manager'|'admin'|'superadmin'|'kitchen'|'display'; export type DemoMode='ready'|'loading'|'empty'|'error';
 export type Capability='cashierDashboard'|'createOrder'|'cashierPeople'|'manageNotes'|'manageOrders'|'viewSeats'|'managerDashboard'|'viewRevenue'|'manageExpenses'|'manageInventory'|'viewProfitability'|'runSop'|'adminDashboard'|'adminInsights'|'manageCatalog'|'adminOperations'|'adminStaff'|'adminSop'|'viewKitchen'|'viewDisplay';
-const capabilities:Record<Role,readonly Capability[]>={cashier:['cashierDashboard','createOrder','cashierPeople','manageNotes','manageOrders','viewSeats'],manager:['managerDashboard','viewRevenue','manageExpenses','manageInventory','viewProfitability','runSop','manageOrders','viewSeats'],admin:[],kitchen:['viewKitchen'],display:['viewDisplay']};
-export const can=(role:Role,capability:Capability)=>role==='admin'||capabilities[role].includes(capability);
+const capabilities:Record<Role,readonly Capability[]>={cashier:['cashierDashboard','createOrder','cashierPeople','manageNotes','manageOrders','viewSeats'],manager:['managerDashboard','viewRevenue','manageExpenses','manageInventory','viewProfitability','runSop','manageOrders','viewSeats'],admin:[],superadmin:[],kitchen:['viewKitchen'],display:['viewDisplay']};
+export const can=(role:Role,capability:Capability)=>role==='admin'||role==='superadmin'||capabilities[role].includes(capability);
+export const dashboardPath=(role:Role)=>role==='admin'||role==='superadmin'?'/admin/dashboard':`/${role}/dashboard`;
 export type ServiceMode=string; export type OrderStatus='Held'|'Preparing'|'Ready'|'Completed'|'Voided';
 export interface OrderType {id:string;name:string;enabled:boolean;archived:boolean;requiresTable:boolean}
 export type TableStatus='Available'|'Occupied'|'Reserved'|'Needs attention'|'Unavailable';

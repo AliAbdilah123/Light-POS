@@ -11,7 +11,7 @@ const initial:Data={orders:seedOrders,orderTypes:seedOrderTypes,tables:seedTable
 let serverState:Data|undefined,revision=1,authenticated=true,conflict:Data|undefined;
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json'}});
 const fixtureState=()=>{const saved=JSON.parse(localStorage.getItem('light-pos-demo-v1')||'null')||{};const data={...structuredClone(initial),...saved,menus:saved.menus||structuredClone(seedMenus),tables:saved.tables||structuredClone(seedTables).map(t=>({...t,status:saved.seatStatuses?.[t.id]||t.status})),expenses:(saved.expenses||structuredClone(seedExpenses)).map((e:Data['expenses'][number])=>({...e,category:e.category?.trim()||'Uncategorized',lines:Array.isArray(e.lines)?e.lines:[]}))};if(saved.expenses)localStorage.setItem('light-pos-demo-v1',JSON.stringify(data));return data};
-const sessionFor=(role=(localStorage.getItem('pos-role') as Role)||'cashier')=>({id:`test-${role}`,username:role,name:`Test ${role}`,role,businessIds:role==='admin'||role==='display'?['*']:['harbor'],csrfToken:'test-csrf'});
+const sessionFor=(role=(localStorage.getItem('pos-role') as Role)||'cashier')=>({id:`test-${role}`,username:role,name:`Test ${role}`,role,businessIds:role==='superadmin'?['*']:['harbor'],csrfToken:'test-csrf'});
 const fetchMock=vi.fn(async(input:RequestInfo|URL,options:RequestInit={})=>{const url=new URL(String(input),'http://test.local'),path=url.pathname.replace(/^\/projects\/light-pos\/api/,'');
   if(path==='/session'&&(!options.method||options.method==='GET'))return authenticated?json({user:sessionFor()}):json({error:'Authentication required.'},401);
   if(path==='/login'&&options.method==='POST'){authenticated=true;const {username}=JSON.parse(String(options.body));return json({user:sessionFor(username as Role)});}
@@ -31,6 +31,9 @@ beforeEach(()=>{serverState=undefined;revision=1;authenticated=true;conflict=und
 afterEach(()=>{vi.useRealTimers();cleanup();localStorage.clear();vi.restoreAllMocks();vi.unstubAllGlobals()});
 
 describe('representative workflows',()=>{
+  it('puts accessible logout in the sidebar for every role and returns to login',async()=>{for(const role of ['cashier','manager','admin','superadmin','kitchen','display'] as const){cleanup();authenticated=true;localStorage.setItem('pos-role',role);await renderApp('/');await userEvent.click(screen.getByRole('button',{name:'Open navigation'}));const sidebar=screen.getByRole('navigation',{name:`${role} navigation`}).closest('aside')!;expect(within(sidebar).getByRole('button',{name:/sign out|logout/i})).toBeInTheDocument();expect(within(document.querySelector('.topbar')!).queryByRole('button',{name:/sign out|logout/i})).not.toBeInTheDocument();await userEvent.click(within(sidebar).getByRole('button',{name:/sign out|logout/i}));expect(await screen.findByRole('heading',{name:'Sign in to your workspace'})).toBeInTheDocument()}});
+
+  it('lands tenant admin on its dashboard without global choices and superadmin on the portfolio',async()=>{localStorage.setItem('pos-role','admin');await renderApp('/');expect(await screen.findByRole('heading',{name:'Tenant admin dashboard'})).toBeInTheDocument();expect(screen.getByLabelText('Business')).toHaveValue('harbor');expect(screen.queryByRole('option',{name:'All businesses'})).not.toBeInTheDocument();cleanup();localStorage.setItem('pos-role','superadmin');await renderApp('/');expect(await screen.findByRole('heading',{name:'Business portfolio'})).toBeInTheDocument();expect(screen.getByLabelText('Business')).toHaveValue('all');expect(screen.getByRole('option',{name:'All businesses'})).toBeInTheDocument();for(const name of ['Harbor Café','Garden Table','North Bakehouse'])expect(screen.getByRole('option',{name})).toBeInTheDocument()});
   it('resumes the complete held-order context from immutable snapshots',async()=>{
     localStorage.setItem('light-pos-demo-v1',JSON.stringify({orders:[{id:'HELD-1',businessId:'harbor',createdAt:'2026-09-02T10:00:00Z',service:'Dine In',tableIds:['T01','T07'],status:'Held',lines:[{id:'saved',menuId:'missing-now',name:'Saved special',price:41000,qty:2,modifier:'Less sweet',note:'No foam'}],subtotal:82000,discount:8200,tax:7380,total:81180,coupon:'REVIEW10'}]}));
     await renderApp('/cashier/order');await userEvent.click(screen.getByRole('button',{name:'1 held order'}));expect(screen.getByRole('dialog',{name:'Held orders'})).toHaveTextContent('HELD-1');await userEvent.click(screen.getByRole('button',{name:/Restore HELD-1/}));
@@ -535,7 +538,7 @@ describe('authenticated store workflows',()=>{
   it('signs in and loads the authenticated workspace',async()=>{
     authenticated=false;localStorage.setItem('pos-role','manager');await renderApp('/');const u=userEvent.setup();
     expect(screen.getByRole('heading',{name:'Sign in to your workspace'})).toBeInTheDocument();
-    await u.type(screen.getByLabelText('Username'),'manager');await u.type(screen.getByLabelText('Password'),'light-pos-manager');await u.click(screen.getByRole('button',{name:'Sign in'}));
+    await u.type(screen.getByLabelText('Username'),'manager');await u.type(screen.getByLabelText('Password'),'light-pos-demo');await u.click(screen.getByRole('button',{name:'Sign in'}));
     expect(await screen.findByRole('heading',{name:'Service overview'})).toBeInTheDocument();expect(screen.getByText('Test manager')).toBeInTheDocument();
   });
 
