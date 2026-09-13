@@ -17,7 +17,7 @@ describe('representative workflows',()=>{
 
   it('preserves the active cart and held order when resume replacement is cancelled',async()=>{
     localStorage.setItem('light-pos-demo-v1',JSON.stringify({orders:[{id:'HELD-2',businessId:'harbor',createdAt:'2026-09-02T10:00:00Z',service:'Takeaway',status:'Held',lines:[{id:'saved',menuId:'cross',name:'Held pastry',price:26000,qty:1}],subtotal:26000,discount:0,tax:2600,total:28600}]}));const confirm=vi.spyOn(window,'confirm').mockReturnValue(false);
-    render(<MemoryRouter initialEntries={['/cashier/order']}><App/></MemoryRouter>);await userEvent.click(screen.getAllByRole('button',{name:/Cappuccino/i})[0]);await userEvent.click(screen.getByRole('button',{name:'Resume HELD-2'}));
+    render(<MemoryRouter initialEntries={['/cashier/order']}><App/></MemoryRouter>);await userEvent.click(screen.getAllByRole('button',{name:/Cappuccino/i})[0]);await userEvent.click(screen.getByRole('button',{name:/Add to order/}));await userEvent.click(screen.getByRole('button',{name:'Resume HELD-2'}));
     expect(confirm).toHaveBeenCalled();expect(screen.getByRole('button',{name:'Cappuccino Standard'})).toBeInTheDocument();expect(screen.queryByText('Held pastry')).not.toBeInTheDocument();expect(JSON.parse(localStorage.getItem('light-pos-demo-v1')!).orders[0].id).toBe('HELD-2');
   });
 
@@ -97,6 +97,31 @@ describe('representative workflows',()=>{
     const menus=[{id:'a',kind:'item',name:'A',category:'Food',price:10000,cost:0,available:true,icon:'A',archived:true,currentVersion:1,availability:'available',versions:[{version:1,name:'A',description:'A desc',category:'Food',ingredients:[],price:10000,createdAt:'now'}]},{id:'b',kind:'item',name:'B',category:'Food',price:10000,cost:0,available:true,icon:'B',archived:false,currentVersion:1,availability:'available',versions:[{version:1,name:'B',description:'B desc',category:'Food',ingredients:[],price:10000,createdAt:'now'}]},{id:'set',kind:'bundle',name:'Set',category:'Bundles',price:15000,cost:0,available:true,icon:'◇',archived:false,currentVersion:1,availability:'available',versions:[{version:1,name:'Set',description:'Set desc',category:'Bundles',ingredients:[],components:[{menuId:'a',quantity:1},{menuId:'b',quantity:1}],price:15000,createdAt:'now'}]}];localStorage.setItem('light-pos-demo-v1',JSON.stringify({menus}));
     render(<MemoryRouter initialEntries={['/cashier/order']}><App/></MemoryRouter>);const set=screen.getByRole('button',{name:/Set.*Unavailable/i});expect(set).toHaveAttribute('aria-disabled','true');fireEvent.click(set);expect(screen.queryByText('Set',{selector:'.cart-line strong'})).not.toBeInTheDocument();fireEvent.keyDown(set,{key:'Enter',shiftKey:true});expect(screen.getByRole('dialog')).toHaveTextContent('Composition unavailable');expect(screen.getByRole('dialog')).toHaveTextContent('1 × A');
   });
+  it('creates and version-edits menu variations with free and paid options',async()=>{
+    localStorage.setItem('pos-role','admin');render(<MemoryRouter initialEntries={['/admin/menu']}><App/></MemoryRouter>);const u=userEvent.setup();
+    await u.click(screen.getByRole('button',{name:'Add menu'}));await u.type(screen.getByLabelText('Menu name'),'Mocha');await u.type(screen.getByLabelText('Description'),'Chocolate coffee');await u.type(screen.getByLabelText('Category'),'Coffee');await u.type(screen.getByLabelText('Price'),'40000');
+    await u.click(screen.getByRole('button',{name:'Add variation group'}));await u.type(screen.getByLabelText('Variation group 1 name'),'Sweetness');await u.click(screen.getByRole('button',{name:'Add option to Sweetness'}));await u.type(screen.getByLabelText('Sweetness option 1 name'),'Less sugar');await u.click(screen.getByRole('button',{name:'Add option to Sweetness'}));await u.type(screen.getByLabelText('Sweetness option 2 name'),'Extra shot');await u.type(screen.getByLabelText('Sweetness option 2 price'),'7000');await u.click(screen.getByRole('checkbox',{name:'Require Sweetness'}));await u.click(screen.getByRole('button',{name:'Create menu'}));
+    const row=screen.getByText('Mocha').closest<HTMLElement>('.card')!;expect(row).toHaveTextContent('Sweetness: Less sugar, Extra shot +');await u.click(within(row).getByRole('button',{name:'Edit as new version'}));expect(screen.getByLabelText('Variation group 1 name')).toHaveValue('Sweetness');await u.click(screen.getByRole('button',{name:'Create version 2'}));const saved=JSON.parse(localStorage.getItem('light-pos-demo-v1')!);expect(saved.menus.find((m:{name:string})=>m.name==='Mocha').versions[1].variations[0]).toMatchObject({name:'Sweetness',required:true,options:[{name:'Less sugar',priceDelta:0},{name:'Extra shot',priceDelta:7000}]});
+  });
+
+  it('removes variation options and groups from the draft',async()=>{
+    localStorage.setItem('pos-role','admin');render(<MemoryRouter initialEntries={['/admin/menu']}><App/></MemoryRouter>);const u=userEvent.setup();const row=screen.getByText('Cappuccino').closest<HTMLElement>('.card')!;await u.click(within(row).getByRole('button',{name:'Edit as new version'}));expect(screen.getAllByRole('button',{name:/Remove Sweetness option/})).toHaveLength(2);await u.click(screen.getByRole('button',{name:'Remove Sweetness option 1'}));expect(screen.getAllByRole('button',{name:/Remove Sweetness option/})).toHaveLength(1);expect(screen.getAllByRole('button',{name:/Remove (Sweetness|Coffee)$/})).toHaveLength(2);await u.click(screen.getByRole('button',{name:'Remove Sweetness'}));expect(screen.getAllByRole('button',{name:/Remove (Sweetness|Coffee)$/})).toHaveLength(1);
+  });
+
+  it('customizes configured items while plain items still add directly',async()=>{
+    render(<MemoryRouter initialEntries={['/cashier/order']}><App/></MemoryRouter>);const u=userEvent.setup();
+    await u.click(screen.getByRole('button',{name:/Cappuccino/i}));const dialog=screen.getByRole('dialog',{name:'Customize Cappuccino'});expect(screen.queryByText('Cappuccino',{selector:'.cart-line strong'})).not.toBeInTheDocument();
+    await u.click(within(dialog).getByRole('radio',{name:/Less sugar.*Free/}));await u.click(within(dialog).getByRole('radio',{name:/1 extra shot.*7\.000/}));await u.click(within(dialog).getByRole('button',{name:'Increase quantity'}));expect(within(dialog).getByRole('button',{name:/Add to order/})).toHaveTextContent(/78\.000/);await u.click(within(dialog).getByRole('button',{name:/Add to order/}));
+    expect(screen.getByText('Cappuccino',{selector:'.cart-line strong'}).closest<HTMLElement>('.cart-line')).toHaveTextContent('Less sugar · 1 extra shot');expect(screen.getByText('Cappuccino',{selector:'.cart-line strong'}).closest<HTMLElement>('.cart-line')).toHaveTextContent(/78\.000/);
+    await u.click(screen.getByRole('button',{name:/Long black/i}));expect(screen.getByText('Long black',{selector:'.cart-line strong'})).toBeInTheDocument();
+  });
+
+  it('renders snapshotted variations in kitchen and order history',async()=>{
+    const lines=[{id:'custom',menuId:'cap',name:'Cappuccino',basePrice:32000,price:39000,qty:1,variations:[{groupId:'sweetness',groupName:'Sweetness',optionId:'less',optionName:'Less sugar',priceDelta:0},{groupId:'coffee',groupName:'Coffee',optionId:'extra',optionName:'1 extra shot',priceDelta:7000}],note:'No foam'}];localStorage.setItem('light-pos-demo-v1',JSON.stringify({orders:[{id:'SNAP',businessId:'harbor',createdAt:new Date().toISOString(),service:'Takeaway',status:'Preparing',lines,subtotal:39000,discount:0,tax:3900,total:42900}]}));
+    localStorage.setItem('pos-role','kitchen');render(<MemoryRouter initialEntries={['/kitchen/dashboard']}><App/></MemoryRouter>);expect(screen.getByRole('button',{name:'Open order SNAP'})).toHaveTextContent('Less sugar · 1 extra shot · No foam');await userEvent.click(screen.getByRole('button',{name:'Open order SNAP'}));expect(screen.getByRole('dialog')).toHaveTextContent('Less sugar · 1 extra shot');cleanup();localStorage.setItem('pos-role','cashier');
+    render(<MemoryRouter initialEntries={['/orders']}><App/></MemoryRouter>);await userEvent.click(screen.getByText('SNAP'));expect(screen.getByRole('dialog')).toHaveTextContent('Less sugar · 1 extra shot');expect(screen.getByRole('dialog')).toHaveTextContent('No foam');
+  });
+
   it('creates and version-edits persisted menus with hidden ingredients by default',async()=>{
     localStorage.setItem('pos-role','admin');render(<MemoryRouter initialEntries={['/admin/menu']}><App/></MemoryRouter>);const u=userEvent.setup();
     await u.click(screen.getByRole('button',{name:'Add menu'}));
@@ -115,8 +140,8 @@ describe('representative workflows',()=>{
   });
 
   it('uses cards for tap-to-add, long-press details, cancellation, and keyboard details without visible Details actions',()=>{
-    vi.useFakeTimers();render(<MemoryRouter initialEntries={['/cashier/order']}><App/></MemoryRouter>);const card=screen.getAllByRole('button',{name:/Cappuccino/i})[0];
-    expect(screen.queryByText('Details',{selector:'button'})).not.toBeInTheDocument();fireEvent.click(card);expect(screen.getByRole('button',{name:'Cappuccino Standard'})).toBeInTheDocument();
+    vi.useFakeTimers();render(<MemoryRouter initialEntries={['/cashier/order']}><App/></MemoryRouter>);const card=screen.getAllByRole('button',{name:/Long black/i})[0];
+    expect(screen.queryByText('Details',{selector:'button'})).not.toBeInTheDocument();fireEvent.click(card);expect(screen.getByRole('button',{name:'Long black Standard'})).toBeInTheDocument();
     fireEvent(card,new MouseEvent('pointerdown',{bubbles:true,clientX:1,clientY:1}));fireEvent(card,new MouseEvent('pointermove',{bubbles:true,clientX:30,clientY:1}));act(()=>vi.advanceTimersByTime(700));expect(screen.queryByRole('dialog')).not.toBeInTheDocument();fireEvent.pointerUp(card);
     fireEvent.pointerDown(card,{clientX:1,clientY:1});fireEvent.pointerCancel(card);act(()=>vi.advanceTimersByTime(700));expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     fireEvent.pointerDown(card,{clientX:1,clientY:1});act(()=>vi.advanceTimersByTime(600));expect(screen.getByRole('dialog')).toHaveTextContent('Coffee');fireEvent.pointerUp(card);fireEvent.click(screen.getByRole('button',{name:'Close dialog'}));
@@ -151,6 +176,7 @@ describe('representative workflows',()=>{
     render(<MemoryRouter initialEntries={['/cashier/order']}><App/></MemoryRouter>);
     const u=userEvent.setup();
     await u.click(screen.getByRole('button',{name:/Cappuccino/i}));
+    await u.click(screen.getByRole('button',{name:/Add to order/}));
     await u.selectOptions(screen.getByLabelText('Table(s)'),'T01');
     expect(screen.getByText(/35\.200/, {selector:'.grand b'})).toBeInTheDocument();
     await u.click(screen.getAllByRole('button',{name:'Review & pay'})[0]);
@@ -262,6 +288,7 @@ describe('representative workflows',()=>{
     const tables=screen.getByLabelText('Table(s)');await u.selectOptions(tables,['T01','T07']);
     expect(screen.getByRole('option',{name:/T01/})).toHaveProperty('selected',true);expect(screen.getByRole('option',{name:/T07/})).toHaveProperty('selected',true);expect(screen.getByRole('option',{name:/T02/})).toBeDisabled();
     await u.click(screen.getByRole('button',{name:/Cappuccino/i}));
+    await u.click(screen.getByRole('button',{name:/Add to order/}));
     await u.click(screen.getAllByRole('button',{name:'Review & pay'})[0]);
     await u.click(screen.getByRole('button',{name:/Cash/}));
     const order=JSON.parse(localStorage.getItem('light-pos-demo-v1')!).orders[0];
