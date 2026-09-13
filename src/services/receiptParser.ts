@@ -7,9 +7,9 @@ export function validateReceiptResult(value:unknown):ReceiptResult{
   return x as ReceiptResult;
 }
 
-export async function parseReceipt(file:File,request:typeof fetch=fetch,csrfToken=''){
+export async function parseReceipt(file:File,request:typeof fetch=fetch,csrfToken='',business='harbor'){
   const body=new FormData();body.set('receipt',file);
-  const response=await request(`${import.meta.env.BASE_URL}api/receipts`,{method:'POST',headers:{'x-csrf-token':csrfToken},body});
+  const response=await request(`${import.meta.env.BASE_URL}api/receipts?business=${encodeURIComponent(business)}`,{method:'POST',headers:{'x-csrf-token':csrfToken},body});
   if(!response.ok)throw Error(`Receipt upload failed (${response.status}).`);
   return validateReceiptResult(await response.json());
 }
