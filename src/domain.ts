@@ -33,7 +33,7 @@ export interface Leave {id:string;type:string;from:string;to:string;reason:strin
 export interface Shift {id:string;staff:string;date:string;start:string;end:string;location:string}
 export interface Staff {id:string;name:string;role:string;status:string}
 export interface InventoryItem {id:string;name:string;quantity:number;unit:string;reorderAt:number;status:string}
-export interface Message {id:string;from:string;text:string;time:string}
+export interface Message {id:string;from:string;text:string;time:string;businessId?:string}
 export interface Sop {id:string;title:string;version:number;steps:string[];active:boolean}
 export const idr=(n:number)=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n);
 export const localDate=(s:string)=>new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'}).format(new Date(s));
