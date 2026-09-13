@@ -2,7 +2,7 @@ import {NavLink,useLocation} from 'react-router-dom';
 import {BarChart3,BookCheck,CalendarDays,ClipboardList,Coffee,LayoutDashboard,LogOut,Menu as MenuIcon,Moon,PackageOpen,ReceiptText,ShoppingBag,Sun,Target,Users,WalletCards,X} from 'lucide-react';
 import {useState} from 'react';
 import {useStore} from '../store';
-import {businesses} from '../mockData';
+import {businesses,messages} from '../mockData';
 import {Button,Select} from './atoms';
 import {dashboardPath} from '../domain';
 
