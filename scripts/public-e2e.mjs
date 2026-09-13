@@ -27,7 +27,7 @@ try{
     if(role==='superadmin'){
       for(const {marker} of Object.values(businesses))await assertVisible(page.getByText(marker,{exact:true}).first(),`${username} portfolio marker ${marker}`);
       assert.deepEqual((await selector.locator('option').allTextContents()).sort(),['All businesses',...Object.values(businesses).map(item=>item.label)].sort());
-      for(const [target,{marker}] of Object.entries(businesses)){await selector.selectOption(target);await assertVisible(page.getByText(marker,{exact:true}).first(),`${username} switch ${target}`)}
+      for(const [target,{marker}] of Object.entries(businesses)){await page.getByLabel('Business').selectOption(target);await assertVisible(page.getByText(marker,{exact:true}).first(),`${username} switch ${target}`)}
     }else{
       await assertVisible(page.getByText(businesses[business].marker,{exact:true}).first(),`${username} own marker`);
       for(const [foreign,{marker}] of Object.entries(businesses))if(foreign!==business)assert.equal(await page.getByText(marker,{exact:true}).count(),0,`${username} leaked ${foreign} marker`);
