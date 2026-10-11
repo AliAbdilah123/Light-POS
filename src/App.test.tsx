@@ -299,6 +299,18 @@ describe('representative workflows',()=>{
     expect(screen.getByLabelText('Table(s)')).toHaveAttribute('multiple');
   });
 
+  it('renders duplicate configured order types only once in Current order',async()=>{
+    localStorage.setItem('light-pos-demo-v1',JSON.stringify({orderTypes:[
+      {id:'dine-in',name:'Dine In',enabled:true,archived:false,requiresTable:true},
+      {id:'dine-in-copy',name:' dine in ',enabled:true,archived:false,requiresTable:true},
+      {id:'takeaway',name:'Takeaway',enabled:true,archived:false,requiresTable:false}
+    ]}));
+    await renderApp('/cashier/order');
+    const modes=within(screen.getByRole('group',{name:'Service mode'}));
+    expect(modes.getAllByRole('button')).toHaveLength(2);
+    expect(modes.getAllByRole('button',{name:/dine in/i})).toHaveLength(1);
+  });
+
   it('shows an empty state when no order types are enabled',async()=>{
     localStorage.setItem('light-pos-demo-v1',JSON.stringify({orderTypes:[{id:'off',name:'Old',enabled:false,archived:false,requiresTable:false}]}));
     await renderApp('/cashier/order');
@@ -332,6 +344,11 @@ describe('representative workflows',()=>{
     await u.click(within(referenced).getByRole('button',{name:'Archive'}));
     expect(referenced).toHaveTextContent('Archived');
     expect(JSON.parse(localStorage.getItem('light-pos-demo-v1')!).tables.find((t:{id:string})=>t.id==='T04').archived).toBe(true);
+  });
+
+  it.each(['admin','superadmin'] as const)('links %s from seat status to seat management',async role=>{
+    localStorage.setItem('pos-role',role);await renderApp('/seats');
+    expect(screen.getByRole('link',{name:'Manage seats'})).toHaveAttribute('href','/admin/tables');
   });
 
   it('migrates table statuses and summarizes availability by capacity',async()=>{

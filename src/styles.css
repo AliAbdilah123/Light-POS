@@ -120,3 +120,9 @@
   .ledger-actions{display:grid;grid-template-columns:1fr}
   .ledger-actions .button{width:100%}
 }
+
+/* Compact shared admin surfaces. */
+.top-context{gap:10px}.top-context .field{grid-template-columns:1fr;gap:3px}.top-context select{height:42px;max-width:220px}.identity{text-align:left}.icon-button{width:44px;height:44px}.message-trigger>span{top:-3px;right:-3px;min-width:18px;height:18px;line-height:18px}
+.planning-grid .card{display:flex;flex-direction:column;gap:12px;padding:16px}.planning-grid .catalog-history-trigger{flex:1}.planning-grid .catalog-history-trigger h3{margin:10px 0 6px}.planning-grid .catalog-history-trigger p{margin:6px 0;color:var(--muted)}.planning-grid .card-actions{margin-top:auto}.planning-grid .card-actions .button{min-height:42px}
+.modal form>.button{min-height:44px}.modal form>h3{margin:24px 0 8px}.modal .form-actions{align-items:center;margin-top:24px;padding-top:16px;border-top:1px solid var(--line)}.modal .form-actions .button{min-height:44px;width:auto}.modal .form-actions .primary{margin-left:auto}
+@media(max-width:600px){.modal .form-actions{display:grid;grid-template-columns:1fr}.modal .form-actions .button{width:100%;margin-left:0}.top-context .field{display:block}}
