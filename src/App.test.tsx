@@ -166,6 +166,19 @@ describe('representative workflows',()=>{
     await renderApp('/orders');await userEvent.click(screen.getByText('SNAP'));expect(screen.getByRole('dialog')).toHaveTextContent('Less sugar · 1 extra shot');expect(screen.getByRole('dialog')).toHaveTextContent('No foam');
   });
 
+  it('adds multiple products without reopening the product form',async()=>{
+    localStorage.setItem('pos-role','admin');await renderApp('/admin/menu');const u=userEvent.setup();
+    await u.click(screen.getByRole('button',{name:'Add menu'}));
+    for(const [name,description,price] of [['Espresso','Single shot','24000'],['Iced tea','Cold brewed tea','18000']]){
+      await u.type(screen.getByLabelText('Menu name'),name);await u.type(screen.getByLabelText('Description'),description);await u.type(screen.getByLabelText('Category'),'Drinks');await u.type(screen.getByLabelText('Price'),price);
+      await u.click(screen.getByRole('button',{name:name==='Espresso'?'Create & add another':'Create menu'}));
+      if(name==='Espresso')await waitFor(()=>expect(fetchMock.mock.calls.filter(([,options])=>options?.method==='PUT')).toHaveLength(1));
+    }
+    expect(screen.queryByRole('dialog',{name:'Add menu'})).not.toBeInTheDocument();
+    await waitFor(()=>expect(fetchMock.mock.calls.filter(([,options])=>options?.method==='PUT')).toHaveLength(2));
+    const requests=fetchMock.mock.calls.filter(([,options])=>options?.method==='PUT').map(([,options])=>JSON.parse(String(options?.body)).data.menus.at(-1).name);expect(requests).toEqual(['Espresso','Iced tea']);
+  });
+
   it('creates and version-edits persisted menus with hidden ingredients by default',async()=>{
     localStorage.setItem('pos-role','admin');await renderApp('/admin/menu');const u=userEvent.setup();
     await u.click(screen.getByRole('button',{name:'Add menu'}));

@@ -37,6 +37,12 @@ Completion status: **all rows verified** on 2 September 2026. All identities, fi
 | Deep links / fallback | Router + `AppShell` | Direct route resolution synchronizes role; wildcard recovery | 19 direct routes checked; admin deep-link assertion passed |
 | Domain and rendered tests | `domain.test.ts`, `App.test.tsx` | Reducer, totals, coupon, unit conversion, lifecycle; order/checkout, unavailable product, role, coupon workflows | `npm test`: 2 files, 10/10 tests passed |
 
+## Multi-product catalog entry — 11 October 2026
+
+- Admin menu creation now offers **Create & add another**, which persists the current item, resets every product field, and keeps the dialog open for the next product; the ordinary create action still saves and closes.
+- Focused RED/GREEN coverage verifies two sequential products are sent as separate persisted updates without reopening the form. Full suite: 85/85 tests passed; lint completed with one pre-existing warning; production build passed. Deployed to the public development app; API health and all 17 public role/tenant E2E scenarios passed.
+- The broader backend suite currently has one unrelated failure in the pre-existing dirty `server/app.node.test.mjs` tenant-management test (`404 !== 200`); 13/14 backend tests passed.
+
 ## Final verification record
 
 - `npm test` — PASS: 2 files, 10 tests.
