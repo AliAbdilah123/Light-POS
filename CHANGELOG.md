@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-30
+
+- Added protected system and tenant-owned custom Access Profiles with separate view/edit administration permissions, one-profile user assignment, capability and menu scope enforcement, and a Users & access UI.
+- Migrated existing role accounts to equivalent system profiles so current behavior remains unchanged.
+
 ## 2026-10-28
 
 - Added `features/` with an implementation-backed product map and detailed manual UI verification flows for shared platform behavior, cashier/order/seating, manager operations, administration, kitchen, and customer display.

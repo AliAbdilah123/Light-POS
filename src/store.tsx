@@ -1,10 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 import {createContext,useContext,useEffect,useReducer,useRef,useState,type ReactNode} from 'react';
-import {calculateTotals,cartReducer,menuForSession,type CartAction,type CartLine,type Coupon,type DemoMode,type Expense,type Experiment,type InventoryItem,type Leave,type MenuItem,type Message,type Note,type Order,type OrderType,type Role,type ServiceMode,type Shift,type Sop,type Staff,type Table} from './domain';
+import {calculateTotals,cartReducer,menuForSession,type Capability,type CartAction,type CartLine,type Coupon,type DemoMode,type Expense,type Experiment,type InventoryItem,type Leave,type MenuItem,type MenuScope,type Message,type Note,type Order,type OrderType,type Role,type ServiceMode,type Shift,type Sop,type Staff,type Table} from './domain';
 import {Button,Input} from './components/atoms';
 
 export type Data={orders:Order[];orderTypes:OrderType[];tables:Table[];menus:MenuItem[];experiments:Experiment[];coupons:Coupon[];notes:Note[];expenses:Expense[];leaves:Leave[];staff:Staff[];shifts:Shift[];inventory:InventoryItem[];sops:Sop[];sopHistory:string[];messages:Message[];messagesRead:string[];audit:string[];targets:Record<string,number>;planningNotes:Record<string,string>;schedules:Record<string,string>};
-export type Session={id:string;username:string;name:string;role:Role;businessIds:string[];csrfToken:string};
+export type Session={id:string;username:string;name:string;role:Role;businessIds:string[];csrfToken:string;profileId?:string;capabilities?:Capability[];menuScope?:MenuScope};
 interface Ctx {role:Role;user:Session;business:string;setBusiness:(s:string)=>void;theme:'light'|'dark';toggleTheme:()=>void;demo:DemoMode;setDemo:(d:DemoMode)=>void;data:Data;sessionMenus:MenuItem[];update:(fn:(d:Data)=>Data,action?:string)=>void;cart:CartLine[];dispatch:(a:CartAction)=>void;service:ServiceMode;setService:(s:ServiceMode)=>void;tableIds:string[];setTableIds:(s:string[])=>void;coupon?:Coupon;setCoupon:(c?:Coupon)=>void;totals:ReturnType<typeof calculateTotals>;completeOrder:(payment:'Cash'|'QRIS')=>Order;clearCart:()=>void;logout:()=>Promise<void>;syncError:string;reload:()=>Promise<void>}
 const Context=createContext<Ctx|null>(null);
 export const API=`${import.meta.env.BASE_URL}api`;
