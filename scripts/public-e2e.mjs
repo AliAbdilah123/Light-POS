@@ -26,7 +26,8 @@ try{
     await page.goto(new URL(markerRoute[role],base).href,{waitUntil:'networkidle'});
     if(role==='superadmin'){
       for(const {marker} of Object.values(businesses))await assertVisible(page.getByText(marker,{exact:true}).first(),`${username} portfolio marker ${marker}`);
-      assert.deepEqual((await selector.locator('option').allTextContents()).sort(),['All businesses',...Object.values(businesses).map(item=>item.label)].sort());
+      const tenantNames=await page.evaluate(async path=>((await fetch(`${path}api/tenants`).then(response=>response.json())).tenants).map(tenant=>tenant.name),new URL(base).pathname);
+      assert.deepEqual((await selector.locator('option').allTextContents()).sort(),['All businesses',...tenantNames].sort());
       for(const [target,{marker}] of Object.entries(businesses)){await page.getByLabel('Business').selectOption(target);await assertVisible(page.getByText(marker,{exact:true}).first(),`${username} switch ${target}`)}
     }else{
       await assertVisible(page.getByText(businesses[business].marker,{exact:true}).first(),`${username} own marker`);
