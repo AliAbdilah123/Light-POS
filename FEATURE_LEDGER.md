@@ -15,7 +15,7 @@ Completion status: **all rows verified** on 2 September 2026. All identities, fi
 | Cashier dashboard | `/cashier/dashboard` | Active/upcoming shifts, money/orders/hours, manager/admin messages with persisted read state | Chromium tablet/mobile screenshots inspected |
 | Fast order entry | `/cashier/order` | Category/search/availability, add/quantity/remove, dine-in/takeaway/delivery, table, modifiers/notes, hold/resume | RTL rendered workflow and Chromium order workflow passed |
 | Totals / cash / receipt / history | `/cashier/order`, `/orders` | Fixed calculation, 10% sample tax, cash completion, receipt, persisted order history | Calculation fixtures and rendered checkout test passed |
-| Dynamic QRIS | `/cashier/order` | Unique mock intent, local QR graphic, countdown, pending → simulated provider success, receipt | Chromium success assertion + `tablet-qris-success.png` inspected |
+| Tenant payment QR | `/admin/payment-qr`, `/cashier/order` | Admin/Superadmin-managed static tenant QR; Cashier displays it only for QRIS; checkout fails closed when absent | Backend role/scope, signature, size, CRUD, image-header tests; RTL configuration and checkout tests |
 | Coupons | `/admin/coupons`, `/cashier/order` | Create/delete/activate, unique code validation, fixed/percent value, reason incl. review incentive, apply and math | Coupon math tests; RTL create; Chromium create/application passed |
 | Day notes | `/notes`, `/manager/sop` | Persisted add/edit/delete; manager handoff add/delete; destructive confirmation | Routes inspected and build/typecheck passed |
 | Shift and leave requests | `/cashier/people` | Work/shift history; validated dated leave submission and status history | Route inspected at tablet; accessible validation implemented |
@@ -64,7 +64,7 @@ Completion status: **all rows verified** on 2 September 2026. All identities, fi
 
 ## Consciously mock-only boundaries
 
-- QRIS is a timed local simulation. There is no real QR payload, provider intent, webhook signing, settlement, or payment capture.
+- QRIS displays the tenant's configured static image. There is no provider intent, webhook signing, settlement verification, reconciliation, or payment capture.
 - Authorization is represented through frontend navigation/action visibility; it is not a server-side security boundary.
 - Audit history demonstrates traceable UX but is not tamper-proof append-only storage.
 - Inventory movements, insights, attendance, receipts, cash drawer, printing, schedules, concurrency, and offline reconciliation are illustrative local records. Production versions require backend services and the product-plan implementation gate.

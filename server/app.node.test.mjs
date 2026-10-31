@@ -49,6 +49,24 @@ test('manages one protected or custom access profile per user and enforces featu
   assert.equal((await request(`/api/access-profiles/${profile.id}`,{method:'DELETE',headers,body:JSON.stringify({business:'harbor'})})).status,409);
 });
 
+test('stores one validated tenant payment QR with scoped reads, admin-only mutations, and audit',async()=>{
+  assert.deepEqual(app.db.prepare('PRAGMA table_info(tenant_payment_qr)').all().map(column=>column.name),['business_id','mime','bytes','updated_by','updated_at']);
+  const png=new Uint8Array([137,80,78,71,13,10,26,10,0]),jpeg=new Uint8Array([255,216,255,224,0]),webp=new Uint8Array([82,73,70,70,1,0,0,0,87,69,66,80,86,80,56]);
+  const admin=await login('admin.harbor'),superadmin=await login('superadmin'),cashier=await login('cashier.harbor'),manager=await login('manager.harbor');
+  const put=(auth,business,bytes=png,mime='image/png',csrf=auth.csrf)=>request(`/api/payment-qr?business=${business}`,{method:'PUT',headers:{cookie:auth.cookie,'x-csrf-token':csrf,'content-type':mime},body:bytes});
+  assert.equal((await request('/api/payment-qr?business=harbor')).status,401);
+  assert.equal((await put(admin,'garden')).status,403);assert.equal((await put(superadmin,'all')).status,403);assert.equal((await put(manager,'harbor')).status,403);assert.equal((await put(cashier,'harbor')).status,403);assert.equal((await put(admin,'harbor',png,'image/png','bad')).status,403);
+  assert.equal((await put(admin,'harbor',new Uint8Array(),'image/png')).status,400);assert.equal((await put(admin,'harbor',png,'image/gif')).status,415);assert.equal((await put(admin,'harbor',jpeg,'image/png')).status,400);assert.equal((await put(admin,'harbor',new Uint8Array(2*1024*1024+1),'image/png')).status,413);
+  let response=await put(admin,'harbor');assert.equal(response.status,200);let metadata=await response.json();assert.equal(metadata.configured,true);assert.equal(metadata.mime,'image/png');
+  response=await request('/api/payment-qr?business=harbor',{headers:{cookie:cashier.cookie}});assert.equal(response.status,200);metadata=await response.json();assert.equal(metadata.configured,true);
+  response=await request('/api/payment-qr/image?business=harbor',{headers:{cookie:cashier.cookie}});assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'image/png');assert.equal(response.headers.get('x-content-type-options'),'nosniff');assert.match(response.headers.get('cache-control'),/private/);assert.deepEqual(new Uint8Array(await response.arrayBuffer()),png);
+  assert.equal((await request('/api/payment-qr?business=garden',{headers:{cookie:admin.cookie}})).status,403);assert.equal((await request('/api/payment-qr/image?business=garden',{headers:{cookie:admin.cookie}})).status,403);
+  assert.equal((await put(superadmin,'garden',jpeg,'image/jpeg')).status,200);assert.equal((await put(superadmin,'garden',webp,'image/webp')).status,200);assert.equal(app.db.prepare('SELECT count(*) count FROM tenant_payment_qr WHERE business_id=?').get('garden').count,1);
+  response=await request('/api/payment-qr?business=harbor',{method:'DELETE',headers:{cookie:admin.cookie,'x-csrf-token':admin.csrf}});assert.equal(response.status,200);assert.deepEqual(await response.json(),{configured:false});
+  assert.deepEqual(await (await request('/api/payment-qr?business=harbor',{headers:{cookie:cashier.cookie}})).json(),{configured:false});assert.equal((await request('/api/payment-qr/image?business=harbor',{headers:{cookie:cashier.cookie}})).status,404);
+  assert.deepEqual(app.db.prepare("SELECT action FROM audit_events WHERE action LIKE 'Payment QR %' ORDER BY rowid").all().map(row=>row.action),['Payment QR added','Payment QR added','Payment QR replaced','Payment QR removed']);
+});
+
 test('does not grant global scope to a crafted admin star assignment',async()=>{const hashed=await passwordForTest('light-pos-demo');app.db.prepare('INSERT INTO users(id,username,display_name,role,business_ids,password_salt,password_hash) VALUES(?,?,?,?,?,?,?)').run('crafted-admin','crafted.admin','Crafted Admin','admin',JSON.stringify(['*']),hashed.salt,hashed.hash);const crafted=await login('crafted.admin');assert.equal((await state(crafted,'all')).response.status,403);for(const business of ['harbor','garden','north'])assert.equal((await state(crafted,business)).response.status,403)});
 
 test('logs every seeded account in with the shared development password',async()=>{const accounts=['superadmin',...['harbor','garden','north'].flatMap(business=>[`admin.${business}`,`cashier.${business}`,`manager.${business}`,`kitchen.${business}`,`display.${business}`]),'manager.multi'];for(const username of accounts)assert.equal((await login(username)).user.username,username)});
