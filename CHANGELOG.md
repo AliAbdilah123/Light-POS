@@ -3,6 +3,7 @@
 ## 2026-10-31
 
 - Added tenant-scoped static payment QR upload/removal for Admin and selected-tenant Superadmin, with authenticated cashier display and fail-closed QRIS checkout when no QR is configured. Images are limited to PNG/JPEG/WebP at 2 MB and validated server-side; provider payment verification remains out of scope.
+- Added a "Create user" button and modal dialog to the Users administration page.
 - Added a superadmin-only Tenants page for creating, editing, disabling, and enabling tenants.
 - Made the top business selector use the live tenant list and refresh immediately after tenant changes.
 - Renamed Access Profiles to Roles in the UI, moved user and role forms into accessible modals, and added searchable, filterable, sortable Users and Roles tables.
