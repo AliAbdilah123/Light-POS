@@ -76,6 +76,23 @@ Use a tenant admin for one business and superadmin for portfolio-wide checks.
 3. Create a new version; verify the previous published version remains in history and completed records retain their version.
 4. Archive a template and verify it is unavailable for new runs but historical completions remain.
 
-## 10. Cross-role operational tools
+## 10. Tenants
+
+1. Sign in as superadmin and open **Tenants**; confirm tenant admins cannot see or open the page.
+2. Quick-search by tenant name, ID, or location; filter enabled/disabled tenants and sort each column.
+3. Add a tenant in the modal and verify it persists after refresh.
+4. Edit its name/location; verify the tenant ID is immutable.
+5. Disable it through confirmation; verify it remains listed but cannot be used for operational access.
+6. Enable it and verify access is restored.
+
+## 11. Users and roles
+
+1. Open **Users & roles** for a selected tenant.
+2. Search, filter by role/status, and sort the Users table; edit a user in the modal.
+3. Open Roles, search/filter/sort the table, then create or edit a custom role in the modal.
+4. Verify system roles remain protected and duplicating one creates an editable custom role.
+5. Verify feature permission dependencies and limited menu scope still apply to assigned users.
+
+## 12. Cross-role operational tools
 
 Admin navigation also exposes New order, Orders, Seats, Shift & requests, Notes, Revenue, Expenses, Inventory & recipes, Profitability, and Run SOP & notes. Verify these using the cashier and manager guides, then verify tenant scope after every business switch.

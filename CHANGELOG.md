@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-31
+
+- Added a superadmin-only Tenants page for creating, editing, disabling, and enabling tenants.
+- Renamed Access Profiles to Roles in the UI, moved user and role forms into accessible modals, and added searchable, filterable, sortable Users and Roles tables.
+
 ## 2026-10-30
 
 - Added protected system and tenant-owned custom Access Profiles with separate view/edit administration permissions, one-profile user assignment, capability and menu scope enforcement, and a Users & access UI.
