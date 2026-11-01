@@ -26,4 +26,5 @@
 - Removed duplicate service-mode tabs from Current order, added direct admin/superadmin seat-management access, and compacted oversized header, catalog-card, and menu-form controls.
 ## 2026-11-01
 
+- Fixed photo menu parsing to use the OpenAI-compatible chat/vision contract, parse chat-completion and SSE responses safely, and route extraction through the Hermes vision-capable model.
 - Fixed global superadmins receiving “Business access denied” when selecting newly created tenants such as Lalala Cafe.
