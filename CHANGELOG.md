@@ -2,6 +2,7 @@
 
 ## 2026-10-31
 
+- Added tenant-scoped bulk menu import from up to five validated photos through backend-only Hermes extraction, editable review drafts, and explicit atomic menu creation.
 - Added a reusable accessible DataTable with quick search, caller-defined filters and sorting, bulk selection/actions, and infinite-scroll pagination; migrated tenant, user, and role administration to it.
 - Added tenant-scoped static payment QR upload/removal for Admin and selected-tenant Superadmin, with authenticated cashier display and fail-closed QRIS checkout when no QR is configured. Images are limited to PNG/JPEG/WebP at 2 MB and validated server-side; provider payment verification remains out of scope.
 - Added a "Create user" button and modal dialog to the Users administration page.
@@ -23,3 +24,6 @@
 
 - Fixed order-entry product cards so they fill their grid columns at laptop widths.
 - Removed duplicate service-mode tabs from Current order, added direct admin/superadmin seat-management access, and compacted oversized header, catalog-card, and menu-form controls.
+## 2026-11-01
+
+- Fixed global superadmins receiving “Business access denied” when selecting newly created tenants such as Lalala Cafe.
