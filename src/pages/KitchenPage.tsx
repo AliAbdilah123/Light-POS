@@ -1,5 +1,7 @@
 import {useState} from 'react';
-import {Badge,Button,EmptyState} from '../components/atoms';
+import {EmptyState} from '../components/ui/empty-state';
+import {Badge} from '../components/ui/badge';
+import {Button} from '../components/ui/button';
 import {PageHead,SectionTitle} from '../components/molecules';
 import {useStore} from '../store';
 import type {MenuItem,Order} from '../domain';

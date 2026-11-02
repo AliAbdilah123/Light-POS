@@ -1,20 +1,26 @@
 import {useState} from 'react';
-import {Badge,Button,Card,Input,Select} from '../components/atoms';
+import {Badge} from '../components/ui/badge';
+import {Button} from '../components/ui/button';
+import {Card} from '../components/ui/card';
+import {Input} from '../components/ui/input';
+import {NativeSelect as Select} from '../components/ui/native-select';
 import {FormActions,Modal,PageHead} from '../components/molecules';
 import {idr,validateBundle,validateVariations,type BundleComponent,type Ingredient,type MenuItem,type VariationGroup} from '../domain';
 import {useStore} from '../store';
+import {MenuPhotoImport} from '../components/MenuPhotoImport';
 
 type Filter='Active'|'Archived'|'All';
 
 export function AdminMenuPage(){
-  const s=useStore(),[editing,setEditing]=useState<string>(),[kind,setKind]=useState<'item'|'bundle'>('item'),[ingredients,setIngredients]=useState<Ingredient[]>([]),[components,setComponents]=useState<BundleComponent[]>([]),[variations,setVariations]=useState<VariationGroup[]>([]),[error,setError]=useState(''),[filter,setFilter]=useState<Filter>('Active'),[history,setHistory]=useState<MenuItem>(),[archiving,setArchiving]=useState<MenuItem>();
+  const s=useStore(),[importing,setImporting]=useState(false),[editing,setEditing]=useState<string>(),[kind,setKind]=useState<'item'|'bundle'>('item'),[ingredients,setIngredients]=useState<Ingredient[]>([]),[components,setComponents]=useState<BundleComponent[]>([]),[variations,setVariations]=useState<VariationGroup[]>([]),[error,setError]=useState(''),[filter,setFilter]=useState<Filter>('Active'),[history,setHistory]=useState<MenuItem>(),[archiving,setArchiving]=useState<MenuItem>();
   const item=s.data.menus.find(m=>m.id===editing),current=item?.versions?.find(v=>v.version===item.currentVersion),standards=s.data.menus.filter(m=>(m.kind||'item')==='item'&&!m.archived),filtered=s.data.menus.filter(m=>filter==='All'||m.archived===(filter==='Archived'));
   const nameOf=(id:string)=>s.data.menus.find(m=>m.id===id)?.versions?.find(v=>v.version===s.data.menus.find(x=>x.id===id)?.currentVersion)?.name||s.data.menus.find(m=>m.id===id)?.name||id;
   const begin=(id:string)=>{const m=s.data.menus.find(x=>x.id===id)!,v=m.versions!.find(x=>x.version===m.currentVersion)!;setEditing(id);setKind(m.kind||'item');setIngredients(v.ingredients.map(x=>({...x})));setComponents(v.components?.map(x=>({...x}))||[]);setVariations(structuredClone(v.variations||[]))};
   const close=()=>{setEditing(undefined);setKind('item');setIngredients([]);setComponents([]);setVariations([]);setError('')};
   const save=(e:React.FormEvent<HTMLFormElement>)=>{e.preventDefault();const form=e.currentTarget,fd=new FormData(form),name=String(fd.get('name')).trim(),description=String(fd.get('description')).trim(),category=String(fd.get('category')).trim(),price=Number(fd.get('price')),id=item?.id||crypto.randomUUID(),bundleError=kind==='bundle'?validateBundle(id,components,s.data.menus):'',variationError=kind==='item'?validateVariations(variations):'';if(!name||!description||!category||price<=0||ingredients.some(x=>!x.name.trim()||x.quantity!==undefined&&(!Number.isFinite(x.quantity)||x.quantity<=0))||bundleError||variationError){setError(bundleError||variationError||'Name, description, category, positive price, and ingredient names are required.');return}const version=(item?.currentVersion||0)+1,v={version,name,description,category,price,ingredients:kind==='item'?ingredients:[],components:kind==='bundle'?components:undefined,variations:kind==='item'?variations:undefined,createdAt:new Date().toISOString()};s.update(d=>({...d,menus:item?d.menus.map(m=>m.id===id?{...m,kind,currentVersion:version,versions:[...m.versions!,v],name,category,price}:m):[...d.menus,{id,kind,currentVersion:1,versions:[v],availability:'available',archived:false,icon:'◇',name,category,price,cost:0,available:true}]}));form.reset();if((e.nativeEvent as SubmitEvent).submitter?.getAttribute('value')==='another'){setEditing(crypto.randomUUID());setKind('item');setIngredients([]);setComponents([]);setVariations([]);setError('')}else close()};
   return <>
-    <PageHead title="Menu catalog" description="Create immutable menu versions and control catalog availability." action={<Button variant="primary" onClick={()=>{close();setEditing('new')}}>Add menu</Button>}/>
+    <PageHead title="Menu catalog" description="Create immutable menu versions and control catalog availability." action={<div className="form-actions"><Button onClick={()=>setImporting(true)}>Import from photos</Button><Button variant="primary" onClick={()=>{close();setEditing('new')}}>Add menu</Button></div>}/>
+    {importing&&<MenuPhotoImport onClose={()=>setImporting(false)}/>}
     <div className="segment catalog-filter" aria-label="Menu status filter">{(['Active','Archived','All'] as Filter[]).map(x=><button key={x} aria-pressed={filter===x} onClick={()=>setFilter(x)}>{x}</button>)}</div>
     {editing&&<Modal title={item?`Edit ${current?.name}`:'Add menu'} onClose={close}>{error&&<div role="alert" className="alert bad">{error}</div>}<form key={editing||'new'} onSubmit={save}>
       <Select label="Menu kind" value={kind} onChange={e=>{setKind(e.target.value as 'item'|'bundle');setError('')}} disabled={!!item}><option value="item">Item</option><option value="bundle">Bundle</option></Select>

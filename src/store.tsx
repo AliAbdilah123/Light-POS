@@ -1,7 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
 import {createContext,useContext,useEffect,useReducer,useRef,useState,type ReactNode} from 'react';
 import {calculateTotals,cartReducer,menuForSession,type Capability,type CartAction,type CartLine,type Coupon,type DemoMode,type Expense,type Experiment,type InventoryItem,type Leave,type MenuItem,type MenuScope,type Message,type Note,type Order,type OrderType,type Role,type ServiceMode,type Shift,type Sop,type Staff,type Table} from './domain';
-import {Button,Card,Input} from './components/atoms';
+import {Button} from './components/ui/button';
+import {Card} from './components/ui/card';
+import {Input} from './components/ui/input';
 import {Alert,AlertDescription} from './components/ui/alert';
 import {businesses} from './mockData';
 

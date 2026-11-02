@@ -22,4 +22,19 @@ describe('DataTable',()=>{
     render(<DataTable ariaLabel="People" rows={rows} rowKey={x=>x.id} columns={columns} pageSize={2}/>);expect(screen.queryByText('Zulu')).not.toBeInTheDocument();
     await waitFor(()=>expect(observer).toBeDefined());act(()=>observer?.([{isIntersecting:true} as IntersectionObserverEntry],{} as IntersectionObserver));expect(screen.getByText('Zulu')).toBeInTheDocument();
   });
+
+  it('keeps query, sorting, selection, row actions, and pagination caller controlled',async()=>{
+    let observer:IntersectionObserverCallback|undefined;vi.stubGlobal('IntersectionObserver',class{constructor(callback:IntersectionObserverCallback){observer=callback}observe(){}disconnect(){}});
+    const onQueryChange=vi.fn(),onSortChange=vi.fn(),onSelectionChange=vi.fn(),onLoadMore=vi.fn();
+    render(<DataTable ariaLabel="People" rows={rows} rowKey={x=>x.id} columns={columns} search={{value:'',onChange:onQueryChange}} sort={{key:'name',direction:'ascending',onChange:onSortChange}} selection={{selected:new Set(['2']),onChange:onSelectionChange}} bulkActions={[{label:'Archive',onClick:vi.fn()}]} rowActions={row=><button>Open {row.name}</button>} hasMore onLoadMore={onLoadMore}/>);const user=userEvent.setup();
+    await user.type(screen.getByRole('searchbox',{name:'Quick search'}),'z');expect(onQueryChange).toHaveBeenCalledWith('z');
+    await user.click(screen.getByRole('button',{name:'Name, sorted ascending'}));expect(onSortChange).toHaveBeenCalledWith({key:'name',direction:'descending'});
+    expect(screen.getByRole('checkbox',{name:'Select Alpha'})).toBeChecked();await user.click(screen.getByRole('checkbox',{name:'Select Bravo'}));expect(onSelectionChange).toHaveBeenCalledWith(new Set(['2','3']));
+    expect(screen.getByRole('button',{name:'Open Zulu'})).toBeInTheDocument();await waitFor(()=>expect(observer).toBeDefined());act(()=>observer?.([{isIntersecting:true} as IntersectionObserverEntry],{} as IntersectionObserver));expect(onLoadMore).toHaveBeenCalledOnce();
+  });
+
+  it('announces incremental loading and renders explicit errors without exposing rows',()=>{
+    const {rerender}=render(<DataTable ariaLabel="People" rows={rows} rowKey={x=>x.id} columns={columns} incrementalLoading/>);expect(screen.getByRole('status')).toHaveTextContent('Loading more results');
+    rerender(<DataTable ariaLabel="People" rows={rows} rowKey={x=>x.id} columns={columns} error="No access"/>);expect(screen.getByRole('alert')).toHaveTextContent('No access');expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
 });

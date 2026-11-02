@@ -1,5 +1,6 @@
 import { useStore } from '../store';
-import { Button, EmptyState } from './atoms';
+import { Button } from './ui/button';
+import { EmptyState } from './ui/empty-state';
 import { Alert, AlertTitle, AlertDescription } from './ui/alert';
 import { AlertCircle } from 'lucide-react';
 

@@ -2,10 +2,11 @@ import * as React from 'react';
 import * as ProgressPrimitive from '@radix-ui/react-progress';
 import { cn } from '@/lib/utils';
 
+type ProgressProps=React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root>&{label?:string};
 const Progress = React.forwardRef<
   React.ElementRef<typeof ProgressPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root>
->(({ className, value, ...props }, ref) => (
+  ProgressProps
+>(({ className, value, label, ...props }, ref) => label?<div className="progress"><div className="progress-meta"><span>{label}</span><strong>{Math.round(Number(value))}%</strong></div><div role="progressbar" aria-label={label} aria-valuenow={value as number} aria-valuemin={0} aria-valuemax={100}><Progress value={value}/><i style={{width:`${Math.min(100,Number(value))}%`}}/></div></div>:(
   <ProgressPrimitive.Root
     ref={ref}
     className={cn(

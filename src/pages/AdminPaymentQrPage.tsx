@@ -1,7 +1,8 @@
 import {useEffect,useState} from 'react';
 import {API,useStore} from '../store';
 import {businesses} from '../mockData';
-import {Button,Card} from '../components/atoms';
+import {Button} from '../components/ui/button';
+import {Card} from '../components/ui/card';
 import {PageHead} from '../components/molecules';
 
 type Metadata={configured:boolean;mime?:string;updatedAt?:string};

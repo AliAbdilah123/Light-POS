@@ -1,4 +1,5 @@
-import {Badge,EmptyState} from '../components/atoms';
+import {EmptyState} from '../components/ui/empty-state';
+import {Badge} from '../components/ui/badge';
 import {PageHead} from '../components/molecules';
 import {idr,type MenuItem} from '../domain';
 import {useStore} from '../store';

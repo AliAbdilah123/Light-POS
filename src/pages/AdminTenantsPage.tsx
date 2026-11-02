@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useState} from 'react';
 import {API,useStore,type Tenant} from '../store';
-import {Button,Input} from '../components/atoms';
+import {Button} from '../components/ui/button';
+import {Input} from '../components/ui/input';
 import {DataTable,type DataTableColumn} from '../components/DataTable';
 import {FormActions,Modal,PageHead} from '../components/molecules';
 

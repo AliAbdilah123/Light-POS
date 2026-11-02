@@ -21,8 +21,10 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
-import { Button, Select } from './atoms';
+import { Button } from './ui/button';
+import { NativeSelect as Select } from './ui/native-select';
 import { dashboardPath } from '../domain';
+import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
 
 const nav = {
   cashier: [
@@ -89,7 +91,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [messagesOpen, setMessagesOpen] = useState(false);
   const menuTrigger = useRef<HTMLButtonElement>(null);
-  const sidebar = useRef<HTMLElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const close = useRef<HTMLButtonElement>(null);
   const loc = useLocation();
@@ -121,10 +122,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [messagesOpen]);
 
   useEffect(() => {
-    setOpen(false);
-  }, [loc.pathname]);
-
-  useEffect(() => {
     if (!window.matchMedia) return;
     const wide = window.matchMedia('(min-width: 801px)');
     const reset = (event: MediaQueryListEvent) => {
@@ -133,43 +130,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     wide.addEventListener('change', reset);
     return () => wide.removeEventListener('change', reset);
   }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    const previous = document.activeElement as HTMLElement | null;
-    const first = sidebar.current?.querySelector<HTMLElement>('a,button');
-    first?.focus();
-    document.body.classList.add('nav-open');
-    const keydown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setOpen(false);
-        menuTrigger.current?.focus();
-        return;
-      }
-      if (event.key !== 'Tab' || !sidebar.current) return;
-      const items = [
-        ...sidebar.current.querySelectorAll<HTMLElement>(
-          'a,button:not(:disabled)'
-        ),
-      ];
-      if (!items.length) return;
-      const first = items[0];
-      const last = items.at(-1)!;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', keydown);
-    return () => {
-      document.removeEventListener('keydown', keydown);
-      document.body.classList.remove('nav-open');
-      if (previous === menuTrigger.current) menuTrigger.current?.focus();
-    };
-  }, [open]);
 
   return (
     <div className="app-shell">
@@ -311,55 +271,50 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </section>
         </div>
       )}
-      {open && (
-        <button
-          className="nav-backdrop"
-          aria-label="Close navigation"
-          onClick={() => {
-            setOpen(false);
-            menuTrigger.current?.focus();
-          }}
-        />
-      )}
-      <aside
-        ref={sidebar}
-        id="app-navigation"
-        className={`sidebar ${open ? 'open' : ''}`}
-      >
-        <nav aria-label={`${role} navigation`}>
-          {[
-            ...nav[navRole],
-            ...(global ? ([['Tenants', '/admin/tenants', Users]] as const) : []),
-          ].map(([name, to, Icon]) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={() => setOpen(false)}
-              className={({ isActive }) =>
-                isActive || (to === '/orders' && loc.pathname.startsWith('/orders'))
-                  ? 'active'
-                  : ''
-              }
-            >
-              <Icon aria-hidden="true" />
-              <span>{name}</span>
-            </NavLink>
-          ))}
-        </nav>
-        <div className="sidebar-foot">
-          <Button className="sidebar-logout" onClick={() => void logout()}>
-            <LogOut aria-hidden="true" />
-            Sign out
-          </Button>
-          <span className="live-dot" />
-          Server session · synced
-          <br />
-          <small>Signed in as {user.username}</small>
-        </div>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="left" aria-describedby={undefined} className="sidebar mobile-sidebar">
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <Navigation role={role} navRole={navRole} global={global} pathname={loc.pathname} logout={logout} username={user.username} onNavigate={() => setOpen(false)} />
+        </SheetContent>
+      </Sheet>
+      <aside id="app-navigation" className="sidebar desktop-sidebar">
+        <Navigation role={role} navRole={navRole} global={global} pathname={loc.pathname} logout={logout} username={user.username} />
       </aside>
       <main id="main" tabIndex={-1}>
         {children}
       </main>
     </div>
+  );
+}
+
+function Navigation({ role, navRole, global, pathname, logout, username, onNavigate }: {
+  role: ReturnType<typeof useStore>['role'];
+  navRole: keyof typeof nav;
+  global: boolean;
+  pathname: string;
+  logout: () => Promise<void>;
+  username: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <>
+      <nav aria-label={`${role} navigation`}>
+        {[...nav[navRole], ...(global ? ([['Tenants', '/admin/tenants', Users]] as const) : [])].map(([name, to, Icon]) => (
+          <NavLink key={to} to={to} onClick={onNavigate} className={({ isActive }) => isActive || (to === '/orders' && pathname.startsWith('/orders')) ? 'active' : ''}>
+            <Icon aria-hidden="true" />
+            <span>{name}</span>
+          </NavLink>
+        ))}
+      </nav>
+      <div className="sidebar-foot">
+        <Button className="sidebar-logout" onClick={() => void logout()}>
+          <LogOut aria-hidden="true" />
+          Sign out
+        </Button>
+        <span className="live-dot" /> Server session · synced
+        <br />
+        <small>Signed in as {username}</small>
+      </div>
+    </>
   );
 }

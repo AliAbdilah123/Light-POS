@@ -8,7 +8,7 @@ The revisioned JSON aggregate is an envelope with one complete bucket for each t
 
 ## Normal deployment
 
-1. Copy `.env.example` to `.env`, set one secure `POS_SEED_PASSWORD` of at least 12 characters, optionally configure `POS_RECEIPT_PARSER_URL`, and set mode `0600`.
+1. Copy `.env.example` to `.env`, set one secure `POS_SEED_PASSWORD` of at least 12 characters, optionally configure `POS_RECEIPT_PARSER_URL`, and configure backend-only `HERMES_URL` and `HERMES_SECRET` to enable photo menu parsing; set mode `0600`.
 2. Stop the API. Run `sqlite3 sqlite.db 'PRAGMA integrity_check;'` and require `ok`. Copy `sqlite.db`, `sqlite.db-wal`, and `sqlite.db-shm` together when present.
 3. Run `npm ci`, `npm run test:backend`, `npm test`, `npm run typecheck`, `npm run lint`, and `npm run build`.
 4. Replace the contents of `/usr/share/nginx/html/projects/light-pos/` with `dist/`, retaining the deployed directory ownership and modes.

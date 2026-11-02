@@ -24,7 +24,10 @@
 
 - Fixed order-entry product cards so they fill their grid columns at laptop widths.
 - Removed duplicate service-mode tabs from Current order, added direct admin/superadmin seat-management access, and compacted oversized header, catalog-card, and menu-form controls.
-## 2026-11-01
+## 2026-11-02
 
+- Removed the obsolete atoms compatibility module; shared and page controls now consume shadcn/ui components directly while retaining required responsive layout hooks.
+- Migrated page-level buttons, inputs, selects, cards, badges, and progress controls from compatibility imports to direct shadcn/ui components while preserving existing form labels, variants, layout hooks, and accessibility.
+- Migrated responsive application navigation to the shadcn Sheet primitive while preserving desktop navigation, role-scoped links, focus management, and sign-out behavior.
 - Fixed photo menu parsing to use the OpenAI-compatible chat/vision contract, parse chat-completion and SSE responses safely, and route extraction through the Hermes vision-capable model.
 - Fixed global superadmins receiving “Business access denied” when selecting newly created tenants such as Lalala Cafe.
