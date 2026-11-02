@@ -22,6 +22,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
 import { NativeSelect as Select } from './ui/native-select';
 import { dashboardPath } from '../domain';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
@@ -155,22 +156,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </NavLink>
         <div className="top-context">
-          <div className="identity">
-            <strong>{user.name}</strong>
-            <small>{role}</small>
-          </div>
-          <Select
-            label="Business"
-            value={business}
-            onChange={(e) => setBusiness(e.target.value)}
-          >
-            {global && <option value="all">All businesses</option>}
-            {allowed.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </Select>
           <Select
             label="Demo state"
             value={demo}
@@ -274,11 +259,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="left" aria-describedby={undefined} className="sidebar mobile-sidebar">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
-          <Navigation role={role} navRole={navRole} global={global} pathname={loc.pathname} logout={logout} username={user.username} onNavigate={() => setOpen(false)} />
+          <Navigation idPrefix="mobile" role={role} navRole={navRole} global={global} pathname={loc.pathname} logout={logout} user={user} business={business} setBusiness={setBusiness} tenants={allowed} onNavigate={() => setOpen(false)} />
         </SheetContent>
       </Sheet>
       <aside id="app-navigation" className="sidebar desktop-sidebar">
-        <Navigation role={role} navRole={navRole} global={global} pathname={loc.pathname} logout={logout} username={user.username} />
+        <Navigation idPrefix="desktop" role={role} navRole={navRole} global={global} pathname={loc.pathname} logout={logout} user={user} business={business} setBusiness={setBusiness} tenants={allowed} />
       </aside>
       <main id="main" tabIndex={-1}>
         {children}
@@ -287,17 +272,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Navigation({ role, navRole, global, pathname, logout, username, onNavigate }: {
+function Navigation({ idPrefix, role, navRole, global, pathname, logout, user, business, setBusiness, tenants, onNavigate }: {
+  idPrefix: string;
   role: ReturnType<typeof useStore>['role'];
   navRole: keyof typeof nav;
   global: boolean;
   pathname: string;
   logout: () => Promise<void>;
-  username: string;
+  user: ReturnType<typeof useStore>['user'];
+  business: string;
+  setBusiness: (business: string) => void;
+  tenants: ReturnType<typeof useStore>['tenants'];
   onNavigate?: () => void;
 }) {
+  const [tenantSearch, setTenantSearch] = useState('');
+  const visibleTenants = tenants.filter((tenant) => tenant.name.toLowerCase().includes(tenantSearch.trim().toLowerCase()));
   return (
     <>
+      <section className="sidebar-context" aria-label="Account and tenant">
+        <div className="sidebar-user">
+          <span aria-hidden="true">{user.name.charAt(0).toUpperCase()}</span>
+          <div><strong>{user.name}</strong><small>@{user.username} · {role}</small></div>
+        </div>
+        <Input id={`${idPrefix}-tenant-search`} label="Find tenant" type="search" value={tenantSearch} onChange={(event) => setTenantSearch(event.target.value)} placeholder="Search tenants…" />
+        <Select id={`${idPrefix}-business`} label="Business" value={business} onChange={(event) => setBusiness(event.target.value)}>
+          {global && <option value="all">All businesses</option>}
+          {visibleTenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.name}</option>)}
+        </Select>
+      </section>
       <nav aria-label={`${role} navigation`}>
         {[...nav[navRole], ...(global ? ([['Tenants', '/admin/tenants', Users]] as const) : [])].map(([name, to, Icon]) => (
           <NavLink key={to} to={to} onClick={onNavigate} className={({ isActive }) => isActive || (to === '/orders' && pathname.startsWith('/orders')) ? 'active' : ''}>
@@ -313,7 +315,6 @@ function Navigation({ role, navRole, global, pathname, logout, username, onNavig
         </Button>
         <span className="live-dot" /> Server session · synced
         <br />
-        <small>Signed in as {username}</small>
       </div>
     </>
   );
