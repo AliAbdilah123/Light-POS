@@ -26,9 +26,9 @@ try{
     await page.goto(new URL(markerRoute[role],base).href,{waitUntil:'networkidle'});
     if(role==='superadmin'){
       for(const {marker} of Object.values(businesses))await assertVisible(page.getByText(marker,{exact:true}).first(),`${username} portfolio marker ${marker}`);
-      const tenantNames=await page.evaluate(async path=>((await fetch(`${path}api/tenants`).then(response=>response.json())).tenants).map(tenant=>tenant.name),new URL(base).pathname);
-      await selector.click();assert.deepEqual((await page.getByRole('listbox',{name:'Businesses'}).getByRole('option').allTextContents()).sort(),['All businesses',...tenantNames].sort());
-      for(const [target,{label,marker}] of Object.entries(businesses)){await selector.fill(label);await page.getByRole('option',{name:label}).click();await assertVisible(page.getByText(marker,{exact:true}).first(),`${username} switch ${target}`)}
+      const tenantList=await page.evaluate(async path=>(await fetch(`${path}api/tenants`).then(response=>response.json())).tenants,new URL(base).pathname);
+      await selector.click();assert.deepEqual((await page.getByRole('listbox',{name:'Businesses'}).getByRole('option').allTextContents()).sort(),['All businesses',...tenantList.map(tenant=>tenant.name)].sort());
+      for(const [target,{marker}] of Object.entries(businesses)){const label=tenantList.find(tenant=>tenant.id===target).name;await selector.fill(label);await page.getByRole('option',{name:label,exact:true}).click();await assertVisible(page.getByText(marker,{exact:true}).first(),`${username} switch ${target}`)}
     }else{
       await assertVisible(page.getByText(businesses[business].marker,{exact:true}).first(),`${username} own marker`);
       for(const [foreign,{marker}] of Object.entries(businesses))if(foreign!==business)assert.equal(await page.getByText(marker,{exact:true}).count(),0,`${username} leaked ${foreign} marker`);
