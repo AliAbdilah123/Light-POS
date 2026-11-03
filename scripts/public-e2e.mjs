@@ -22,7 +22,7 @@ try{
     await page.goto(base,{waitUntil:'networkidle'});
     await page.getByLabel('Username').fill(username);await page.getByLabel('Password').fill(password);await page.getByRole('button',{name:'Sign in'}).click();
     await assertVisible(page.getByRole('heading',{name:landing[role]}),`${username} landing`);
-    const selector=page.getByLabel('Business'),businessName=business==='all'?'All businesses':businesses[business].label;assert.equal(await selector.inputValue(),businessName,`${username} tenant indicator`);
+    const selector=page.getByRole('combobox',{name:'Business'}),businessName=business==='all'?'All businesses':businesses[business].label;assert.equal(await selector.inputValue(),businessName,`${username} tenant indicator`);
     await page.goto(new URL(markerRoute[role],base).href,{waitUntil:'networkidle'});
     if(role==='superadmin'){
       for(const {marker} of Object.values(businesses))await assertVisible(page.getByText(marker,{exact:true}).first(),`${username} portfolio marker ${marker}`);
