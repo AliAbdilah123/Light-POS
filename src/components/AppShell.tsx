@@ -22,7 +22,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { Button } from './ui/button';
-import { NativeSelect as Select } from './ui/native-select';
+
 import { dashboardPath } from '../domain';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
 
@@ -82,8 +82,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     tenants,
     theme,
     toggleTheme,
-    demo,
-    setDemo,
+
     data,
     update,
     logout,
@@ -155,16 +154,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </NavLink>
         <div className="top-context">
-          <Select
-            label="Demo state"
-            value={demo}
-            onChange={(e) => setDemo(e.target.value as typeof demo)}
-          >
-            <option value="ready">Ready</option>
-            <option value="loading">Loading</option>
-            <option value="empty">Empty</option>
-            <option value="error">Error</option>
-          </Select>
           <button
             ref={trigger}
             className="icon-button message-trigger"

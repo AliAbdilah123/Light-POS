@@ -32,3 +32,8 @@
 - Migrated responsive application navigation to the shadcn Sheet primitive while preserving desktop navigation, role-scoped links, focus management, and sign-out behavior.
 - Fixed photo menu parsing to use the OpenAI-compatible chat/vision contract, parse chat-completion and SSE responses safely, and route extraction through the Hermes vision-capable model.
 - Fixed global superadmins receiving “Business access denied” when selecting newly created tenants such as Lalala Cafe.
+# 2026-11-03
+
+- Fixed mobile alignment for admin filters, result counts, user forms, checkboxes, and tables.
+- Removed frontend sample-state controls and frontend tenant fixture initialization; tenant labels now load from the API for authorized users.
+- Kept tenant-admin role creation and editing backed by tenant-scoped access-profile APIs.

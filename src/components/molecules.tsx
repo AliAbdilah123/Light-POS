@@ -7,7 +7,7 @@ import { idr } from '../domain';
 import { cn } from '@/lib/utils';
 
 export function PageHead({
-  eyebrow = 'Sample operational data',
+  eyebrow,
   title,
   description,
   action,
@@ -20,7 +20,7 @@ export function PageHead({
   return (
     <header className="page-head">
       <div>
-        <span className="eyebrow">{eyebrow}</span>
+        {eyebrow && <span className="eyebrow">{eyebrow}</span>}
         <h1>{title}</h1>
         <p>{description}</p>
       </div>
