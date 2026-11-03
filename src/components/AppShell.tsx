@@ -22,7 +22,6 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { NativeSelect as Select } from './ui/native-select';
 import { dashboardPath } from '../domain';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
@@ -285,8 +284,6 @@ function Navigation({ idPrefix, role, navRole, global, pathname, logout, user, b
   tenants: ReturnType<typeof useStore>['tenants'];
   onNavigate?: () => void;
 }) {
-  const [tenantSearch, setTenantSearch] = useState('');
-  const visibleTenants = tenants.filter((tenant) => tenant.name.toLowerCase().includes(tenantSearch.trim().toLowerCase()));
   return (
     <>
       <section className="sidebar-context" aria-label="Account and tenant">
@@ -294,11 +291,7 @@ function Navigation({ idPrefix, role, navRole, global, pathname, logout, user, b
           <span aria-hidden="true">{user.name.charAt(0).toUpperCase()}</span>
           <div><strong>{user.name}</strong><small>@{user.username} · {role}</small></div>
         </div>
-        <Input id={`${idPrefix}-tenant-search`} label="Find tenant" type="search" value={tenantSearch} onChange={(event) => setTenantSearch(event.target.value)} placeholder="Search tenants…" />
-        <Select id={`${idPrefix}-business`} label="Business" value={business} onChange={(event) => setBusiness(event.target.value)}>
-          {global && <option value="all">All businesses</option>}
-          {visibleTenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.name}</option>)}
-        </Select>
+        <TenantSelect id={`${idPrefix}-business`} global={global} value={business} tenants={tenants} onChange={setBusiness} />
       </section>
       <nav aria-label={`${role} navigation`}>
         {[...nav[navRole], ...(global ? ([['Tenants', '/admin/tenants', Users]] as const) : [])].map(([name, to, Icon]) => (
@@ -318,4 +311,28 @@ function Navigation({ idPrefix, role, navRole, global, pathname, logout, user, b
       </div>
     </>
   );
+}
+
+function TenantSelect({ id, global, value, tenants, onChange }: {
+  id: string;
+  global: boolean;
+  value: string;
+  tenants: ReturnType<typeof useStore>['tenants'];
+  onChange: (business: string) => void;
+}) {
+  const options = [...(global ? [{ id: 'all', name: 'All businesses' }] : []), ...tenants];
+  const selected = options.find((option) => option.id === value)?.name || '';
+  const [query, setQuery] = useState(selected);
+  const [open, setOpen] = useState(false);
+  const visible = options.filter((option) => option.name.toLowerCase().includes(query.toLowerCase()));
+  useEffect(() => setQuery(selected), [selected]);
+  const choose = (option: (typeof options)[number]) => { onChange(option.id); setQuery(option.name); setOpen(false); };
+  return <div className="field tenant-combobox">
+    <label htmlFor={id}>Business</label>
+    <input id={id} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={`${id}-options`} value={query} onFocus={() => { setQuery(''); setOpen(true); }} onChange={(event) => { setQuery(event.target.value); setOpen(true); }} onKeyDown={(event) => { if (event.key === 'Escape') { setQuery(selected); setOpen(false); } else if (event.key === 'Enter' && visible[0]) { event.preventDefault(); choose(visible[0]); } }} />
+    {open && <div id={`${id}-options`} role="listbox" aria-label="Businesses">
+      {visible.map((option) => <button type="button" role="option" aria-selected={option.id === value} key={option.id} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(option)}>{option.name}</button>)}
+      {!visible.length && <small>No tenants found</small>}
+    </div>}
+  </div>;
 }

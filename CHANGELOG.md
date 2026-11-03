@@ -26,7 +26,7 @@
 - Removed duplicate service-mode tabs from Current order, added direct admin/superadmin seat-management access, and compacted oversized header, catalog-card, and menu-form controls.
 ## 2026-11-02
 
-- Moved the signed-in user and tenant selector into the sidebar and added tenant search for faster workspace switching.
+- Moved the signed-in user and searchable tenant selector into the sidebar for faster workspace switching.
 - Removed the obsolete atoms compatibility module; shared and page controls now consume shadcn/ui components directly while retaining required responsive layout hooks.
 - Migrated page-level buttons, inputs, selects, cards, badges, and progress controls from compatibility imports to direct shadcn/ui components while preserving existing form labels, variants, layout hooks, and accessibility.
 - Migrated responsive application navigation to the shadcn Sheet primitive while preserving desktop navigation, role-scoped links, focus management, and sign-out behavior.
