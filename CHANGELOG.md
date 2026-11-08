@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-08
+
+- Replaced shared system roles with superadmin-managed template roles that are copied into independent, editable tenant roles; migrated existing users to tenant-owned copies and added the superadmin Template Roles tab.
+
 ## 2026-10-31
 
 - Added tenant-scoped bulk menu import from up to five validated photos through backend-only Hermes extraction, editable review drafts, and explicit atomic menu creation.
