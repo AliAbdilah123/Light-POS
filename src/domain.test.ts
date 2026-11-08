@@ -1,4 +1,4 @@
-import {describe,expect,it} from 'vitest';import {activateExperiment,calculateExperiment,calculateTotals,can,cartReducer,finalizeExperiment,hasCapability,menuAllowed,menuForSession,nextStatus,SYSTEM_PROFILES,unitConvert,validateBundle,validateVariations,type Coupon,type Experiment,type MenuItem} from './domain';
+import {describe,expect,it} from 'vitest';import {activateExperiment,calculateExperiment,calculateTotals,can,cartReducer,finalizeExperiment,FEATURE_ROWS,hasCapability,menuAllowed,menuForSession,nextStatus,setCapability,SYSTEM_PROFILES,unitConvert,validateBundle,validateVariations,type Coupon,type Experiment,type MenuItem} from './domain';
 
 describe('bundle validation',()=>{const standard=(id:string,archived=false):MenuItem=>({id,kind:'item',name:id,category:'Food',price:10000,cost:0,available:true,icon:'x',archived});const catalog=[standard('a'),standard('b'),standard('old',true),{...standard('nested'),kind:'bundle' as const}];it('requires two current standard components with positive integer quantities',()=>{expect(validateBundle('bundle',[{menuId:'a',quantity:1},{menuId:'b',quantity:2}],catalog)).toBe('');expect(validateBundle('bundle',[{menuId:'a',quantity:1}],catalog)).toMatch(/at least two/i);expect(validateBundle('bundle',[{menuId:'a',quantity:0},{menuId:'b',quantity:1}],catalog)).toMatch(/positive integer/i)});it('rejects self references, nested bundles, and archived components',()=>{expect(validateBundle('bundle',[{menuId:'bundle',quantity:1},{menuId:'b',quantity:1}],catalog)).toMatch(/self/i);expect(validateBundle('bundle',[{menuId:'nested',quantity:1},{menuId:'b',quantity:1}],catalog)).toMatch(/standard menus/i);expect(validateBundle('bundle',[{menuId:'old',quantity:1},{menuId:'b',quantity:1}],catalog)).toMatch(/current/i)})});
 
@@ -37,3 +37,10 @@ it('flags nonpositive and nonfinite ingredient quantities safely',()=>{const e=e
 });
 
 it('rejects duplicate bundle component IDs',()=>{const a:MenuItem={id:'a',name:'A',category:'x',price:1,cost:0,available:true,icon:'x'};expect(validateBundle('set',[{menuId:'a',quantity:1},{menuId:'a',quantity:2}],[a])).toMatch(/unique/i)});
+
+describe('feature permission toggling',()=>{
+  it('gives every feature a distinct view capability so checkboxes stay independent',()=>{const views=FEATURE_ROWS.map(r=>r.view),all=[...FEATURE_ROWS.map(r=>r.view),...FEATURE_ROWS.flatMap(r=>r.edit?[r.edit]:[])];expect(new Set(views).size).toBe(views.length);expect(new Set(all).size).toBe(all.length)});
+  it('toggles single-capability features (Expenses/Inventory) without side effects',()=>{expect(setCapability([],'manageExpenses',true)).toEqual(['manageExpenses']);expect(setCapability(['manageExpenses'],'manageInventory',true)).toEqual(['manageExpenses','manageInventory']);expect(setCapability(['manageExpenses','manageInventory'],'manageInventory',false)).toEqual(['manageExpenses'])});
+  it('requires a view for its edit and clears the edit when the view is unchecked',()=>{expect(setCapability([],'editAccessProfiles',true)).toEqual(['editAccessProfiles','viewAccessProfiles']);expect(setCapability(['viewAccessProfiles','editAccessProfiles'],'viewAccessProfiles',false)).toEqual([])});
+  it('preserves unrelated capabilities',()=>{expect(setCapability(['manageOrders','manageExpenses'],'manageInventory',true)).toEqual(['manageOrders','manageExpenses','manageInventory'])});
+});
