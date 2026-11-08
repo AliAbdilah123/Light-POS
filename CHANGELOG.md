@@ -3,6 +3,7 @@
 ## 2026-11-08
 
 - Replaced shared system roles with superadmin-managed template roles that are copied into independent, editable tenant roles; migrated existing users to tenant-owned copies and added the superadmin Template Roles tab.
+- Kept tenant role edit actions visible on mobile and routed superadmin template-role edits through the template API with an immediate refresh.
 
 ## 2026-10-31
 
