@@ -235,3 +235,11 @@
 .status-row .status-end{flex-wrap:nowrap}
 .status-row .row-actions{display:flex;gap:6px;flex-wrap:nowrap;width:auto}
 .status-row .row-actions .button{flex:0 0 auto;min-height:40px;padding-inline:14px;white-space:nowrap}
+
+/* Revenue target: explicit save (no commit on blur) */
+.target-row{grid-template-columns:1fr 260px;align-items:end}
+.target-edit{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.target-edit .field{margin:0}
+.target-edit .button{min-height:36px;padding-inline:16px}
+.saved-flag{grid-column:1/-1;color:var(--accent);font-size:.76rem;font-weight:700}
+@media(max-width:1100px){.target-row{grid-template-columns:1fr}}

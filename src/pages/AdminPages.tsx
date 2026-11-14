@@ -58,14 +58,35 @@ export function AdminOperations(){
   const authorized=businesses.filter(b=>b.id in s.data.targets);
   const[targetDraft,setTargetDraft]=useState<Record<string,string>>({});
   const[scheduleDraft,setScheduleDraft]=useState<Record<string,string>>({});
+  const[savedTarget,setSavedTarget]=useState('');
   const month=new Intl.DateTimeFormat('id-ID',{month:'long'}).format(new Date());
   const revenue=s.data.orders.filter(o=>o.status==='Completed').reduce((sum,o)=>sum+o.total,0);
-  const commitTarget=(id:string,raw:string)=>{const n=Number(raw);if(raw.trim()!==''&&Number.isFinite(n)&&n>=0&&n!==s.data.targets[id])s.update(d=>({...d,targets:{...d.targets,[id]:n}}),`Revenue target updated for ${id}`);setTargetDraft(d=>{const rest={...d};delete rest[id];return rest})};
+  const saveTarget=(id:string)=>{
+    const raw=targetDraft[id];
+    if(raw===undefined)return;
+    const n=Number(raw);
+    if(raw.trim()===''||!Number.isFinite(n)||n<0)return;
+    if(n!==s.data.targets[id])s.update(d=>({...d,targets:{...d.targets,[id]:n}}),`Revenue target updated for ${id}`);
+    setTargetDraft(d=>{const rest={...d};delete rest[id];return rest});
+    setSavedTarget(id);
+    window.setTimeout(()=>setSavedTarget(current=>current===id?'':current),2400);
+  };
   const commitSchedule=(day:string,raw:string)=>{if(raw.trim()!==(s.data.schedules[day]||''))s.update(d=>({...d,schedules:{...d.schedules,[day]:raw.trim()}}),`Opening hours updated for ${day}`);setScheduleDraft(d=>{const rest={...d};delete rest[day];return rest})};
   return <><PageHead title="Targets & opening hours" description="Edit revenue goals and business operating schedule."/>
-  <div className="split"><Card><SectionTitle title={`${month} revenue targets`} meta="Progress uses completed payments in this business"/>{authorized.map(b=>{const target=s.data.targets[b.id]||0,draft=targetDraft[b.id]??String(target);return <div className="target-row" key={b.id}><div><strong>{b.name}</strong><Progress label={`${b.name} progress`} value={target>0?revenue/target*100:0}/><small className="muted">{idr(revenue)} of {idr(target)}</small></div><Input label="Target IDR" type="number" inputMode="numeric" min="0" value={draft} onChange={e=>setTargetDraft(d=>({...d,[b.id]:e.target.value}))} onBlur={()=>commitTarget(b.id,draft)}/></div>})}</Card>
+  <div className="split"><Card><SectionTitle title={`${month} revenue targets`} meta="Progress uses completed payments in this business"/>{authorized.map(b=>{
+    const target=s.data.targets[b.id]||0,draft=targetDraft[b.id]??String(target),value=Number(draft);
+    const valid=draft.trim()!==''&&Number.isFinite(value)&&value>=0,dirty=valid&&value!==target;
+    return <div className="target-row" key={b.id}>
+      <div><strong>{b.name}</strong><Progress label={`${b.name} progress`} value={target>0?revenue/target*100:0}/><small className="muted">{idr(revenue)} of {idr(target)}</small></div>
+      <div className="target-edit">
+        <Input label="Target IDR" type="number" inputMode="numeric" min="0" value={draft} onChange={e=>setTargetDraft(d=>({...d,[b.id]:e.target.value}))} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();saveTarget(b.id)}}}/>
+        <Button variant="primary" disabled={!dirty||!s.writable} onClick={()=>saveTarget(b.id)}>Save</Button>
+        {savedTarget===b.id&&<small className="saved-flag" role="status">Saved</small>}
+      </div>
+    </div>})}</Card>
   <Card><SectionTitle title="Opening & closing schedule" meta="Saves when you leave the field"/>{Object.entries(s.data.schedules).map(([day,hours])=>{const value=scheduleDraft[day]??hours,open=value.trim()!=='';return <div className="schedule-row" key={day}><strong>{day}</strong><input aria-label={`${day} hours`} value={value} placeholder="Closed" onChange={e=>setScheduleDraft(d=>({...d,[day]:e.target.value}))} onBlur={()=>commitSchedule(day,value)}/><label><input type="checkbox" checked={open} onChange={e=>{const nextValue=e.target.checked?(value.trim()||'07:00-21:00'):'';setScheduleDraft(d=>({...d,[day]:nextValue}));commitSchedule(day,nextValue)}}/> Open</label></div>})}</Card></div></>;
 }
+
 export function StaffPage(){
   const s=useStore();
   const[editing,setEditing]=useState<string>();const[open,setOpen]=useState(false);const[deleting,setDeleting]=useState<string>();const[error,setError]=useState('');
