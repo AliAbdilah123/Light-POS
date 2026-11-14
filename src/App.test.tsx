@@ -51,7 +51,7 @@ describe('shadcn page controls',()=>{
 });
 
 describe('representative workflows',()=>{
-  it('puts messages in the header and accessible logout in the sidebar for every role',async()=>{for(const role of ['cashier','manager','admin','superadmin','kitchen','display'] as const){cleanup();authenticated=true;serverState=undefined;localStorage.setItem('pos-role',role);await renderApp('/');expect(within(document.querySelector('.topbar')!).getByRole('button',{name:/Messages \(\d+ unread\)/})).toBeInTheDocument();await userEvent.click(screen.getByRole('button',{name:'Open navigation'}));const sidebar=screen.getByRole('dialog',{name:'Navigation'});expect(within(sidebar).getByRole('navigation',{name:`${role} navigation`})).toBeInTheDocument();expect(within(sidebar).getByRole('button',{name:/sign out|logout/i})).toBeInTheDocument();expect(within(document.querySelector('.topbar')!).queryByRole('button',{name:/sign out|logout/i})).not.toBeInTheDocument();await userEvent.click(within(sidebar).getByRole('button',{name:/sign out|logout/i}));expect(await screen.findByRole('heading',{name:'Sign in to your workspace'})).toBeInTheDocument()}});
+  it('puts messages in the header and accessible logout in the sidebar for every role',async()=>{for(const role of ['cashier','manager','admin','superadmin','kitchen'] as const){cleanup();authenticated=true;serverState=undefined;localStorage.setItem('pos-role',role);await renderApp('/');expect(within(document.querySelector('.topbar')!).getByRole('button',{name:/Messages \(\d+ unread\)/})).toBeInTheDocument();await userEvent.click(screen.getByRole('button',{name:'Open navigation'}));const sidebar=screen.getByRole('dialog',{name:'Navigation'});expect(within(sidebar).getByRole('navigation',{name:`${role} navigation`})).toBeInTheDocument();expect(within(sidebar).getByRole('button',{name:/sign out|logout/i})).toBeInTheDocument();expect(within(document.querySelector('.topbar')!).queryByRole('button',{name:/sign out|logout/i})).not.toBeInTheDocument();await userEvent.click(within(sidebar).getByRole('button',{name:/sign out|logout/i}));expect(await screen.findByRole('heading',{name:'Sign in to your workspace'})).toBeInTheDocument()}});
 
   it('opens persisted messages, reports unread state, marks read, and dismisses accessibly',async()=>{
     localStorage.setItem('pos-role','cashier');localStorage.setItem('light-pos-demo-v1',JSON.stringify({messages:[{id:'new',from:'Manager · Harbor',text:'Brief the lunch team.',time:'Today · 08:10'},{id:'read',from:'Operations',text:'Refrigeration log complete.',time:'Yesterday · 17:45'}],messagesRead:['read']}));await renderApp('/cashier/dashboard');
@@ -79,15 +79,15 @@ describe('representative workflows',()=>{
 
   it('creates a new user in a modal and lists it in the table',async()=>{localStorage.setItem('pos-role','admin');await renderApp('/admin/users-access');await userEvent.click(await screen.findByRole('button',{name:'Create user'}));const dialog=screen.getByRole('dialog',{name:'Create user'});expect(dialog).toBeInTheDocument();await userEvent.type(screen.getByLabelText('Display name'),'Budi Supervisor');await userEvent.type(screen.getByLabelText('Username'),'budi');await userEvent.type(screen.getByLabelText('Password'),'secret-password-123');await userEvent.click(within(dialog).getByRole('button',{name:'Create user'}));expect(await screen.findByText('Budi Supervisor')).toBeInTheDocument()});
 
-  it('lets tenant admins configure a validated payment QR and requires one selected tenant',async()=>{vi.spyOn(window,'confirm').mockReturnValue(true);localStorage.setItem('pos-role','admin');await renderApp('/admin/payment-qr');expect(await screen.findByRole('heading',{name:'Payment QR'})).toBeInTheDocument();expect(screen.getByText('No payment QR configured.')).toBeInTheDocument();const input=screen.getByLabelText('QR image');await userEvent.upload(input,new File([new Uint8Array([137,80,78,71])],'qr.png',{type:'image/png'}));await userEvent.click(screen.getByRole('button',{name:'Upload QR'}));expect(await screen.findByRole('img',{name:'Payment QR for Harbor Café'})).toBeInTheDocument();await userEvent.click(screen.getByRole('button',{name:'Remove QR'}));expect(await screen.findByText('No payment QR configured.')).toBeInTheDocument();cleanup();localStorage.setItem('pos-role','superadmin');await renderApp('/admin/payment-qr');expect(screen.getByText('Select one tenant to configure its payment QR.')).toBeInTheDocument();expect(screen.getByRole('button',{name:'Upload QR'})).toBeDisabled()});
+  it('lets tenant admins configure a validated payment QR and requires one selected tenant',async()=>{vi.spyOn(window,'confirm').mockReturnValue(true);localStorage.setItem('pos-role','admin');await renderApp('/admin/payment-qr');expect(await screen.findByRole('heading',{name:'Payment QR'})).toBeInTheDocument();expect(screen.getByText('No payment QR configured.')).toBeInTheDocument();const input=screen.getByLabelText('QR image');await userEvent.upload(input,new File([new Uint8Array([137,80,78,71])],'qr.png',{type:'image/png'}));await userEvent.click(screen.getByRole('button',{name:'Upload QR'}));expect(await screen.findByRole('img',{name:'Payment QR for Harbor Café'})).toBeInTheDocument();await userEvent.click(screen.getByRole('button',{name:'Remove QR'}));await userEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Remove QR'}));expect(await screen.findByText('No payment QR configured.')).toBeInTheDocument();cleanup();localStorage.setItem('pos-role','superadmin');await renderApp('/admin/payment-qr');expect(screen.getByText('Select one tenant to configure its payment QR.')).toBeInTheDocument();expect(screen.getByRole('button',{name:'Upload QR'})).toBeDisabled()});
 
-  it('shows only a configured tenant QR for QRIS and fails closed when absent',async()=>{await renderApp('/cashier/order');const u=userEvent.setup();await u.click(screen.getByRole('button',{name:/Cappuccino/i}));await u.click(screen.getByRole('button',{name:/Add to order/}));await u.selectOptions(screen.getByLabelText('Table(s)'),'T01');await u.click(screen.getAllByRole('button',{name:'Review & pay'})[0]);await u.click(screen.getByRole('button',{name:/QRIS/}));expect(await screen.findByRole('alert')).toHaveTextContent('QRIS is unavailable');expect(serverState?.orders).toHaveLength(initial.orders.length);paymentQrConfigured=true;cleanup();serverState=undefined;await renderApp('/cashier/order');await u.click(screen.getByRole('button',{name:/Cappuccino/i}));await u.click(screen.getByRole('button',{name:/Add to order/}));await u.selectOptions(screen.getByLabelText('Table(s)'),'T01');await u.click(screen.getAllByRole('button',{name:'Review & pay'})[0]);await u.click(screen.getByRole('button',{name:/QRIS/}));expect(await screen.findByRole('img',{name:'Payment QR for Harbor Café'})).toBeInTheDocument();expect(screen.getByText(/does not verify payment/)).toBeInTheDocument();expect(screen.getByRole('button',{name:'Complete QRIS payment'})).toBeInTheDocument()});
+  it('shows only a configured tenant QR for QRIS and fails closed when absent',async()=>{await renderApp('/cashier/order');const u=userEvent.setup();await u.click(screen.getByRole('button',{name:/Cappuccino/i}));await u.click(screen.getByRole('button',{name:/Add to order/}));await u.click(screen.getByRole('button',{name:/^T01/}));await u.click(screen.getAllByRole('button',{name:'Review & pay'})[0]);await u.click(screen.getByRole('button',{name:/QRIS/}));expect(await screen.findByRole('alert')).toHaveTextContent('QRIS is unavailable');expect(serverState?.orders).toHaveLength(initial.orders.length);paymentQrConfigured=true;cleanup();serverState=undefined;await renderApp('/cashier/order');await u.click(screen.getByRole('button',{name:/Cappuccino/i}));await u.click(screen.getByRole('button',{name:/Add to order/}));await u.click(screen.getByRole('button',{name:/^T01/}));await u.click(screen.getAllByRole('button',{name:'Review & pay'})[0]);await u.click(screen.getByRole('button',{name:/QRIS/}));expect(await screen.findByRole('img',{name:'Payment QR for Harbor Café'})).toBeInTheDocument();expect(screen.getByText(/does not verify payment/)).toBeInTheDocument();expect(screen.getByRole('button',{name:'Complete QRIS payment'})).toBeInTheDocument()});
   it('resumes the complete held-order context from immutable snapshots',async()=>{
     localStorage.setItem('light-pos-demo-v1',JSON.stringify({orders:[{id:'HELD-1',businessId:'harbor',createdAt:'2026-09-02T10:00:00Z',service:'Dine In',tableIds:['T01','T07'],status:'Held',lines:[{id:'saved',menuId:'missing-now',name:'Saved special',price:41000,qty:2,modifier:'Less sweet',note:'No foam'}],subtotal:82000,discount:8200,tax:7380,total:81180,coupon:'REVIEW10'}]}));
     await renderApp('/cashier/order');await userEvent.click(screen.getByRole('button',{name:'1 held order'}));expect(screen.getByRole('dialog',{name:'Held orders'})).toHaveTextContent('HELD-1');await userEvent.click(screen.getByRole('button',{name:/Restore HELD-1/}));
     expect(screen.queryByRole('dialog',{name:'Held orders'})).not.toBeInTheDocument();
     expect(screen.getByText('Saved special').closest<HTMLElement>('.cart-line')).toHaveTextContent('Less sweet · No foam');expect(screen.getByText('Saved special').closest<HTMLElement>('.cart-line')).toHaveTextContent(/82\.000/);
-    expect(screen.getByRole('button',{name:'Dine In'})).toHaveAttribute('aria-pressed','true');expect(screen.getByRole('option',{name:/T01/})).toHaveProperty('selected',true);expect(screen.getByRole('option',{name:/T07/})).toHaveProperty('selected',true);expect(screen.getByText(/Discount · REVIEW10/)).toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Dine In'})).toHaveAttribute('aria-pressed','true');expect(screen.getByRole('button',{name:/^T01/})).toHaveAttribute('aria-pressed','true');expect(screen.getByRole('button',{name:/^T07/})).toHaveAttribute('aria-pressed','true');expect(screen.getByText(/Discount · REVIEW10/)).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem('light-pos-demo-v1')!).orders).toEqual([]);
   });
 
@@ -107,14 +107,14 @@ describe('representative workflows',()=>{
   it('retains a held order until restoration succeeds and notices an unavailable coupon',async()=>{
     localStorage.setItem('light-pos-demo-v1',JSON.stringify({orders:[{id:'HELD-3',businessId:'harbor',createdAt:'2026-09-02T10:00:00Z',service:'Dine In',table:'T01',status:'Held',lines:[{id:'saved',menuId:'cap',name:'Saved coffee',price:30000,qty:1}],subtotal:30000,discount:15000,tax:1500,total:16500,coupon:'HEMAT15K'}]}));
     await renderApp('/cashier/order');await userEvent.click(screen.getByRole('button',{name:'1 held order'}));await userEvent.click(screen.getByRole('button',{name:/Restore HELD-3/}));
-    expect(screen.getByRole('alert')).toHaveTextContent('Coupon HEMAT15K is unavailable');expect(screen.queryByText(/Discount ·/)).not.toBeInTheDocument();expect(screen.getByText(/30\.000/,{selector:'.totals b'})).toBeInTheDocument();expect(screen.getByRole('option',{name:/T01/})).toHaveProperty('selected',true);expect(JSON.parse(localStorage.getItem('light-pos-demo-v1')!).orders).toEqual([]);
+    expect(screen.getByRole('alert')).toHaveTextContent('Coupon HEMAT15K is unavailable');expect(screen.queryByText(/Discount ·/)).not.toBeInTheDocument();expect(screen.getByText(/30\.000/,{selector:'.totals b'})).toBeInTheDocument();expect(screen.getByRole('button',{name:/^T01/})).toHaveAttribute('aria-pressed','true');expect(JSON.parse(localStorage.getItem('light-pos-demo-v1')!).orders).toEqual([]);
   });
 
   it('renders the default current-session catalog read-only for Display',async()=>{
     localStorage.setItem('pos-role','display');
     await renderApp('/display/dashboard');
     expect(screen.getByRole('heading',{name:'Menu display'})).toBeInTheDocument();
-    expect(screen.getByRole('link',{name:'Menu display'})).toHaveAttribute('href','/display/dashboard');
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
     expect(screen.getByText('Cappuccino').closest<HTMLElement>('article')).toHaveTextContent(/Rp\s*32\.000/);
     expect(screen.getByText('Banana loaf').closest<HTMLElement>('article')).toHaveTextContent('Sold out');
     expect(within(screen.getByRole('main')).queryByRole('button')).not.toBeInTheDocument();
@@ -174,7 +174,7 @@ describe('representative workflows',()=>{
     await u.click(screen.getByRole('button',{name:'Add component'}));await u.selectOptions(screen.getByLabelText('Component 1 menu'),'cap');await u.clear(screen.getByLabelText('Component 1 quantity'));await u.type(screen.getByLabelText('Component 1 quantity'),'1');
     await u.click(screen.getByRole('button',{name:'Add component'}));await u.selectOptions(screen.getByLabelText('Component 2 menu'),'cross');await u.clear(screen.getByLabelText('Component 2 quantity'));await u.type(screen.getByLabelText('Component 2 quantity'),'2');await u.click(screen.getByRole('button',{name:'Create bundle'}));
     expect(screen.getByText('Coffee Pair').closest<HTMLElement>('.card')).toHaveTextContent('1 × Cappuccino, 2 × Butter croissant');
-    cleanup();await renderApp('/cashier/order');await u.click(screen.getByRole('button',{name:/Coffee Pair/i}));await u.click(screen.getByRole('button',{name:/Add to order/}));await u.selectOptions(screen.getByLabelText('Table(s)'),'T01');expect(screen.getByText(/55\.000/,{selector:'.grand b'})).toBeInTheDocument();await u.click(screen.getAllByRole('button',{name:'Review & pay'})[0]);await u.click(screen.getByRole('button',{name:/Cash/}));
+    cleanup();await renderApp('/cashier/order');await u.click(screen.getByRole('button',{name:/Coffee Pair/i}));await u.click(screen.getByRole('button',{name:/Add to order/}));await u.click(screen.getByRole('button',{name:/^T01/}));expect(screen.getByText(/55\.000/,{selector:'.grand b'})).toBeInTheDocument();await u.click(screen.getAllByRole('button',{name:'Review & pay'})[0]);await u.click(screen.getByRole('button',{name:/Cash/}));
     const saved=JSON.parse(localStorage.getItem('light-pos-demo-v1')!);expect(saved.orders[0].lines[0]).toMatchObject({name:'Coffee Pair',price:50000});saved.menus.find((m:{name:string})=>m.name==='Coffee Pair').name='Changed';expect(saved.orders[0].lines[0]).toMatchObject({name:'Coffee Pair',price:50000});
   });
 
@@ -280,7 +280,7 @@ describe('representative workflows',()=>{
     const u=userEvent.setup();
     await u.click(screen.getByRole('button',{name:/Cappuccino/i}));
     await u.click(screen.getByRole('button',{name:/Add to order/}));
-    await u.selectOptions(screen.getByLabelText('Table(s)'),'T01');
+    await u.click(screen.getByRole('button',{name:/^T01/}));
     expect(screen.getByText(/35\.200/, {selector:'.grand b'})).toBeInTheDocument();
     await u.click(screen.getAllByRole('button',{name:'Review & pay'})[0]);
     expect(screen.getByRole('heading',{name:'Checkout'})).toBeInTheDocument();
@@ -338,7 +338,7 @@ describe('representative workflows',()=>{
     await renderApp('/cashier/order');
     expect(screen.getByRole('button',{name:'At Counter'})).toHaveAttribute('aria-pressed','true');
     expect(screen.queryByRole('button',{name:'Disabled'})).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Table(s)')).toHaveAttribute('multiple');
+    expect(screen.getByRole('group',{name:'Table(s)'})).toBeInTheDocument();
   });
 
   it('renders duplicate configured order types only once in Current order',async()=>{
@@ -404,8 +404,8 @@ describe('representative workflows',()=>{
   it('selects multiple available tables, retains selections, and persists table IDs',async()=>{
     await renderApp('/cashier/order');
     const u=userEvent.setup();
-    const tables=screen.getByLabelText('Table(s)');await u.selectOptions(tables,['T01','T07']);
-    expect(screen.getByRole('option',{name:/T01/})).toHaveProperty('selected',true);expect(screen.getByRole('option',{name:/T07/})).toHaveProperty('selected',true);expect(screen.getByRole('option',{name:/T02/})).toBeDisabled();
+    await u.click(screen.getByRole('button',{name:/^T01/}));await u.click(screen.getByRole('button',{name:/^T07/}));
+    expect(screen.getByRole('button',{name:/^T01/})).toHaveAttribute('aria-pressed','true');expect(screen.getByRole('button',{name:/^T07/})).toHaveAttribute('aria-pressed','true');expect(screen.getByRole('button',{name:/^T02/})).toBeDisabled();
     await u.click(screen.getByRole('button',{name:/Cappuccino/i}));
     await u.click(screen.getByRole('button',{name:/Add to order/}));
     await u.click(screen.getAllByRole('button',{name:'Review & pay'})[0]);
@@ -519,16 +519,16 @@ describe('representative workflows',()=>{
     expect(screen.queryByText('Before')).not.toBeInTheDocument();
     expect(screen.getByText('From edge')).toBeInTheDocument();
     expect(screen.getByText('To edge')).toBeInTheDocument();
-    expect(screen.getByText('2 records · Filtered')).toBeInTheDocument();
+    expect(screen.getByText('2 records · filtered')).toBeInTheDocument();
     expect(screen.getByText(/500/,{selector:'.big-stat strong'})).toBeInTheDocument();
     await u.clear(screen.getByLabelText('From'));
     await u.type(screen.getByLabelText('From'),'2026-09-04');
     expect(screen.getByRole('alert')).toHaveTextContent('From date must be on or before To date');
-    expect(screen.getByText('0 records · Filtered')).toBeInTheDocument();
+    expect(screen.getByText('0 records · filtered')).toBeInTheDocument();
     await u.clear(screen.getByLabelText('To'));
     await u.type(screen.getByLabelText('To'),'2026-09-05');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByText('0 records · Filtered')).toBeInTheDocument();
+    expect(screen.getByText('0 records · filtered')).toBeInTheDocument();
     expect(screen.getByText('No expenses in this date range.')).toBeInTheDocument();
   });
 
@@ -628,8 +628,7 @@ describe('authenticated store workflows',()=>{
   });
 
   it('shows only display navigation for an authenticated display account',async()=>{
-    localStorage.setItem('pos-role','display');await renderApp('/display/dashboard');const nav=screen.getByRole('navigation',{name:'display navigation'});
-    expect(within(nav).getByRole('link',{name:'Menu display'})).toHaveAttribute('href','/display/dashboard');expect(within(nav).getAllByRole('link')).toHaveLength(1);expect(screen.getByText('Test display')).toBeInTheDocument();
+    localStorage.setItem('pos-role','display');await renderApp('/display/dashboard');expect(screen.queryByRole('navigation')).not.toBeInTheDocument();expect(screen.queryByRole('button',{name:/Sign out/})).not.toBeInTheDocument();expect(screen.getByRole('heading',{name:'Menu display'})).toBeInTheDocument();
   });
 
   it('persists state through revisioned CSRF PUTs and server-backed remounts',async()=>{

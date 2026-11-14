@@ -2,13 +2,14 @@ import {EmptyState} from '../components/ui/empty-state';
 import {Badge} from '../components/ui/badge';
 import {PageHead} from '../components/molecules';
 import {idr,type MenuItem} from '../domain';
+import {useEffect} from 'react';
 import {useStore} from '../store';
 
 const version=(menu:MenuItem)=>menu.versions?.find(v=>v.version===menu.currentVersion);
 const availability=(menu:MenuItem)=>menu.availability==='sold-out'||menu.available===false?'Sold out':menu.availability==='low'?'Low':'Available';
 
 export function DisplayMenuPage(){
-  const{sessionMenus,demo}=useStore();const menus=(demo==='empty'?[]:sessionMenus).filter(menu=>!menu.archived);
+  const{sessionMenus,demo,reload}=useStore();useEffect(()=>{const timer=window.setInterval(()=>{void reload()},60000);return()=>window.clearInterval(timer)},[reload]);const menus=(demo==='empty'?[]:sessionMenus).filter(menu=>!menu.archived);
   const composition=(menu:MenuItem)=>version(menu)?.components?.map(component=>`${component.quantity} × ${(()=>{const item=sessionMenus.find(item=>item.id===component.menuId);return item?.versions?.find(v=>v.version===item.currentVersion)?.name||'Unavailable item'})()}`).join(', ');
   if(demo==='loading')return <><PageHead title="Menu display" description="Current-session menu and availability."/><div className="skeleton" aria-label="Loading menu display"/></>;
   if(demo==='error')return <><PageHead title="Menu display" description="Current-session menu and availability."/><p role="alert" className="alert bad">Menu could not be loaded. Try again later.</p></>;

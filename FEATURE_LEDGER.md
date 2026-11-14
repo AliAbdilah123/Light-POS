@@ -75,3 +75,24 @@ Completion status: **all rows verified** on 2 September 2026. All identities, fi
 - Order name RED: `npm test -- src/App.test.tsx -t "order name"` — expected failure, 2 tests missing the “Order name” field. GREEN: same command — 2 passed.
 - Open orders RED: `npm test -- src/App.test.tsx src/domain.test.ts -t "open order"` — expected failures, missing “Open order” action and `nextStatus('Open')` returning `Open`. GREEN: same command — 2 passed.
 - Final `npm test` — PASS: 2 files, 15 tests. `npm run lint` — PASS. `npm run typecheck` — PASS. `npm run build -- --base=/projects/light-pos/` — PASS: 1,601 modules transformed; production bundle emitted.
+
+## UX audit corrections — 14 November 2026
+
+Audit report: `docs/ux-audit-2026-11-14.html`. Before/after walkthrough: `docs/ux-before-after.mp4`.
+
+Rows in the table above that did not survive a live walkthrough, and what changed:
+
+| Previous claim | Reality found | Resolution |
+| --- | --- | --- |
+| Named orders: optional order name persists on paid/held/open orders | No order-name field existed in `src/`; no test referenced it | Still open — needs an `Order.name` schema change. Clear-order action shipped instead. |
+| Fixed cart dock on mobile | `.mobile-cart-dock` was `display:none` at every breakpoint | Dock now renders below 800px; the three-pane workspace is kept down to 800px |
+| Expenses: create/edit/delete with confirmation | Create and delete only | Delete now uses the shared modal; edit remains open |
+| SOP templates: archive/publish | Archive existed; no publish control rendered | Unchanged — recorded as open |
+| Shift and leave requests with status history | Submission worked; no approval surface existed for any role | Added `approveLeave`, `/manager/requests`, `/admin/requests`, approve/decline, and withdraw |
+| Cashier shift open/close with opening cash (product plan §4A) | No shift lifecycle anywhere | Unchanged — recorded as open |
+| Tablet-first at 1024×768 with a persistent ledger | Single-column collapse at ≤1100px | Fixed: collapse moved to 800px |
+| Inventory movements and stock | Hardcoded literals, not read from `data.inventory` | Unchanged — needs a unit-cost model |
+| Manager revenue periods with freshness and coverage | Range label updated; metrics did not | Fixed: metrics and chart derive from the selected range |
+
+New capability: `approveLeave` (manager and admin). Server role capabilities are merged into stored access
+profiles on startup, so existing databases pick up newly added capabilities without losing customisations.

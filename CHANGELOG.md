@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-11-14
+
+UX and feature audit fixes (branch `fix/ux-audit-critical-high`). Full report: `docs/ux-audit-2026-11-14.html`; before/after walkthrough: `docs/ux-before-after.mp4`.
+
+- Fixed duplicate state writes: `update()` no longer performs its `fetch` inside the `setData` updater, so React StrictMode no longer double-invokes it. Every mutation now sends exactly one `PUT`, and a rejected write keeps its error visible instead of being cleared by the recovery reload.
+- Order entry: required variation groups default to their first option and a missing group names itself; the table field is marked required with an inline reason when it blocks Hold/Review & pay; the native multi-select is replaced by a table chip grid; the ledger gains a clear-order action.
+- Layout: the three-pane order workspace is kept down to 800px (previously 1100px) and the mobile cart dock is actually displayed; sidebar nav rows no longer stretch to fill the column.
+- Data honesty: manager dashboard, revenue periods, admin dashboard, insights, staff metrics and cashier dashboard now derive from stored records instead of literals; the selected business persists across reloads.
+- Inline editors: revenue targets and opening hours use a local draft committed on blur, with no-op writes skipped.
+- Accessibility: `Progress` renders a single named progressbar; read messages and unavailable tables meet contrast. axe serious/critical is now zero on the audited pages.
+- Leave requests: new `approveLeave` capability with `/manager/requests` and `/admin/requests` approval queues, plus withdraw for the requester.
+- Seats: the table panel shows the real linked order and can start an order with that table preselected.
+- Experiments: activate, finalize and archive confirm in the shared modal; zero-quantity projections are hidden.
+- Replaced every native `confirm()`/`prompt()` with the shared modal; grouped the admin navigation; added a password visibility toggle and demo-account hint; the display role now renders a kiosk layout with a 60-second refresh.
+- Tests: 112 frontend and 21 backend tests pass; lint, typecheck and production build pass.
+
 ## 2026-11-08
 
 - Replaced shared system roles with superadmin-managed template roles that are copied into independent, editable tenant roles; migrated existing users to tenant-owned copies and added the superadmin Template Roles tab.

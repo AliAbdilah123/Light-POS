@@ -18,6 +18,7 @@ import {
   Users,
   WalletCards,
   X,
+  type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
@@ -26,20 +27,26 @@ import { Button } from './ui/button';
 import { dashboardPath } from '../domain';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
 
-const nav = {
+type NavEntry = string | readonly [string, string, LucideIcon];
+const nav: Record<'cashier' | 'manager' | 'admin' | 'kitchen' | 'display', readonly NavEntry[]> = {
   cashier: [
     ['Dashboard', '/cashier/dashboard', LayoutDashboard],
+    'Service',
     ['New order', '/cashier/order', Coffee],
     ['Orders', '/orders', ReceiptText],
     ['Seats', '/seats', Users],
+    'My work',
     ['Shift & requests', '/cashier/people', CalendarDays],
     ['Notes', '/notes', ClipboardList],
   ],
   manager: [
     ['Overview', '/manager/dashboard', LayoutDashboard],
     ['Revenue', '/manager/revenue', BarChart3],
+    'Service',
     ['Orders', '/orders', ReceiptText],
     ['Seats', '/seats', Users],
+    ['Leave approvals', '/manager/requests', CalendarDays],
+    'Operations',
     ['Expenses', '/manager/expenses', WalletCards],
     ['Inventory & recipes', '/manager/inventory', PackageOpen],
     ['Profitability', '/manager/profitability', BarChart3],
@@ -47,31 +54,36 @@ const nav = {
   ],
   admin: [
     ['Portfolio', '/admin/dashboard', LayoutDashboard],
+    ['Revenue', '/admin/revenue', BarChart3],
+    ['Insights', '/admin/insights', BarChart3],
+    'Service',
     ['New order', '/admin/order', Coffee],
     ['Orders', '/orders', ReceiptText],
     ['Seats', '/seats', Users],
     ['Shift & requests', '/admin/people', CalendarDays],
+    ['Leave approvals', '/admin/requests', CalendarDays],
     ['Notes', '/admin/notes', ClipboardList],
-    ['Revenue', '/admin/revenue', BarChart3],
+    ['Run SOP & notes', '/admin/run-sop', BookCheck],
+    'Operations',
     ['Expenses', '/admin/expenses', WalletCards],
     ['Inventory & recipes', '/admin/inventory', PackageOpen],
     ['Profitability', '/admin/profitability', BarChart3],
-    ['Run SOP & notes', '/admin/run-sop', BookCheck],
-    ['Insights', '/admin/insights', BarChart3],
+    ['Staff & shifts', '/admin/staff', Users],
+    ['Targets & schedule', '/admin/operations', Target],
+    'Catalogue',
     ['Menu lab', '/admin/menu', Coffee],
     ['Experiments', '/admin/experiments', Target],
     ['Order types', '/admin/order-types', ClipboardList],
     ['Tables', '/admin/tables', Users],
     ['Coupons', '/admin/coupons', ShoppingBag],
-    ['Targets & schedule', '/admin/operations', Target],
-    ['Staff & shifts', '/admin/staff', Users],
+    'Administration',
     ['SOP templates', '/admin/sop', BookCheck],
     ['Payment QR', '/admin/payment-qr', WalletCards],
     ['Users & roles', '/admin/users-access', Users],
   ],
   kitchen: [['Kitchen', '/kitchen/dashboard', ClipboardList]],
   display: [['Menu display', '/display/dashboard', Coffee]],
-} as const;
+};
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const {
@@ -129,6 +141,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     wide.addEventListener('change', reset);
     return () => wide.removeEventListener('change', reset);
   }, []);
+
+  if (role === 'display') {
+    return <main id="main" className="display-kiosk" tabIndex={-1}>{children}</main>;
+  }
 
   return (
     <div className="app-shell">
@@ -273,6 +289,9 @@ function Navigation({ idPrefix, role, navRole, global, pathname, logout, user, b
   tenants: ReturnType<typeof useStore>['tenants'];
   onNavigate?: () => void;
 }) {
+  const entries: readonly NavEntry[] = nav[navRole];
+  const extras: readonly NavEntry[] = global ? [['Tenants', '/admin/tenants', Users] as const] : [];
+  const items: readonly NavEntry[] = [...entries, ...extras];
   return (
     <>
       <section className="sidebar-context" aria-label="Account and tenant">
@@ -283,12 +302,16 @@ function Navigation({ idPrefix, role, navRole, global, pathname, logout, user, b
         <TenantSelect id={`${idPrefix}-business`} global={global} value={business} tenants={tenants} onChange={setBusiness} />
       </section>
       <nav aria-label={`${role} navigation`}>
-        {[...nav[navRole], ...(global ? ([['Tenants', '/admin/tenants', Users]] as const) : [])].map(([name, to, Icon]) => (
-          <NavLink key={to} to={to} onClick={onNavigate} className={({ isActive }) => isActive || (to === '/orders' && pathname.startsWith('/orders')) ? 'active' : ''}>
-            <Icon aria-hidden="true" />
-            <span>{name}</span>
-          </NavLink>
-        ))}
+        {items.map((entry) => {
+          if (typeof entry === 'string') return <span className="nav-group" key={entry}>{entry}</span>;
+          const [name, to, Icon] = entry;
+          return (
+            <NavLink key={to} to={to} onClick={onNavigate} className={({ isActive }) => isActive || (to === '/orders' && pathname.startsWith('/orders')) ? 'active' : ''}>
+              <Icon aria-hidden="true" />
+              <span>{name}</span>
+            </NavLink>
+          );
+        })}
       </nav>
       <div className="sidebar-foot">
         <Button className="sidebar-logout" onClick={() => void logout()}>

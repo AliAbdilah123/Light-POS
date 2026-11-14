@@ -87,13 +87,18 @@ export function StatusRow({
     status === 'Completed' ||
     status === 'Available' ||
     status === 'Approved' ||
-    status === 'Active'
+    status === 'Active' ||
+    status === 'Enabled'
       ? 'good'
       : status === 'Voided' ||
         status === 'Declined' ||
-        status === 'Unavailable'
+        status === 'Unavailable' ||
+        status === 'Sold out'
       ? 'bad'
-      : status === 'Ready'
+      : status === 'Ready' ||
+        status === 'Assigned' ||
+        status === 'Pending' ||
+        status === 'Upcoming'
       ? 'info'
       : 'warn';
 

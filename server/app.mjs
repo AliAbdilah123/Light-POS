@@ -7,13 +7,13 @@ import {createReceiptUpload} from './receiptUpload.mjs';
 import {extractMenuPhotos,parseMenuPhotos} from './menuImport.mjs';
 
 const ROLES=new Set(['cashier','manager','admin','superadmin','kitchen','display']);
-const ROLE_CAPABILITIES={cashier:['cashierDashboard','createOrder','cashierPeople','manageNotes','manageOrders','viewSeats'],manager:['managerDashboard','viewRevenue','manageExpenses','manageInventory','viewProfitability','runSop','manageOrders','viewSeats'],admin:['cashierDashboard','createOrder','cashierPeople','manageNotes','manageOrders','viewSeats','managerDashboard','viewRevenue','manageExpenses','manageInventory','viewProfitability','runSop','adminDashboard','adminInsights','manageCatalog','adminOperations','adminStaff','adminSop','viewAccessProfiles','editAccessProfiles'],kitchen:['viewKitchen'],display:['viewDisplay']};
+const ROLE_CAPABILITIES={cashier:['cashierDashboard','createOrder','cashierPeople','manageNotes','manageOrders','viewSeats'],manager:['managerDashboard','viewRevenue','manageExpenses','manageInventory','viewProfitability','runSop','manageOrders','viewSeats','approveLeave'],admin:['cashierDashboard','createOrder','cashierPeople','manageNotes','manageOrders','viewSeats','managerDashboard','viewRevenue','manageExpenses','manageInventory','viewProfitability','runSop','adminDashboard','adminInsights','manageCatalog','adminOperations','adminStaff','adminSop','viewAccessProfiles','editAccessProfiles','approveLeave'],kitchen:['viewKitchen'],display:['viewDisplay']};
 const EDITABLE_CAPABILITIES=new Set(Object.values(ROLE_CAPABILITIES).flat());
 const SYSTEM_PROFILES=Object.fromEntries(Object.entries(ROLE_CAPABILITIES).map(([role,capabilities])=>[`system:${role}`,{id:`system:${role}`,name:role[0].toUpperCase()+role.slice(1),role,protected:true,capabilities,menuScope:{mode:'all',categoryIds:[],itemIds:[]}}]));
 const DEFAULT_SCOPE={mode:'all',categoryIds:[],itemIds:[]};
 export const BUSINESS_IDS=['harbor','garden','north'];
 const BUSINESSES=new Set(BUSINESS_IDS);
-const MUTABLE={cashier:new Set(['orders','notes','leaves','messagesRead','tables']),manager:new Set(['orders','notes','expenses','inventory','sopHistory','tables']),admin:null,superadmin:null,kitchen:new Set(['orders','menus','experiments']),display:new Set()};
+const MUTABLE={cashier:new Set(['orders','notes','leaves','messagesRead','tables']),manager:new Set(['orders','notes','expenses','inventory','sopHistory','tables','leaves']),admin:null,superadmin:null,kitchen:new Set(['orders','menus','experiments']),display:new Set()};
 const REQUIRED=['orders','orderTypes','tables','menus','experiments','coupons','notes','expenses','leaves','staff','shifts','inventory','sops','sopHistory','messages','messagesRead','audit','targets','planningNotes','schedules'];
 const ARRAY_KEYS=REQUIRED.filter(key=>!['targets','planningNotes','schedules'].includes(key));
 const isObject=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
@@ -85,9 +85,18 @@ export async function ensureDevelopmentAccounts(db,{resetPasswords=false}={}){
 }
 export function ensureSeedReceipts(db,reference=new Date()){if(db.prepare('SELECT count(*) count FROM receipts').get().count)return;for(const receipt of seedReceipts(reference))db.prepare('INSERT INTO receipts(id,actor_id,business_id,name,mime,bytes,result,created_at) VALUES(?,?,?,?,?,?,?,?)').run(receipt.id,receipt.actorId,receipt.businessId,receipt.name,receipt.mime,receipt.bytes,JSON.stringify(receipt.result),receipt.createdAt)}
 function copyTemplates(db,business){for(const template of db.prepare('SELECT * FROM access_profile_templates').all())db.prepare('INSERT OR IGNORE INTO access_profiles VALUES(?,?,?,?,?)').run(randomUUID(),business,template.name,template.capabilities,template.menu_scope)}
+function mergeCapabilities(stored,current){const merged=[...new Set([...stored,...current])];return merged.length===stored.length&&merged.every((value,index)=>value===stored[index])?null:merged}
 function migrateProfiles(db){
-  for(const [role,capabilities] of Object.entries(ROLE_CAPABILITIES))db.prepare('INSERT OR IGNORE INTO access_profile_templates VALUES(?,?,?,?,?)').run(`template:${role}`,role,role[0].toUpperCase()+role.slice(1),JSON.stringify(capabilities),JSON.stringify(DEFAULT_SCOPE));
-  for(const {id} of db.prepare('SELECT id FROM tenants').all())copyTemplates(db,id);
+  for(const [role,capabilities] of Object.entries(ROLE_CAPABILITIES)){
+    const name=role[0].toUpperCase()+role.slice(1),id=`template:${role}`,existing=db.prepare('SELECT capabilities FROM access_profile_templates WHERE id=?').get(id);
+    if(!existing)db.prepare('INSERT INTO access_profile_templates VALUES(?,?,?,?,?)').run(id,role,name,JSON.stringify(capabilities),JSON.stringify(DEFAULT_SCOPE));
+    else{const merged=mergeCapabilities(JSON.parse(existing.capabilities),capabilities);if(merged)db.prepare('UPDATE access_profile_templates SET capabilities=? WHERE id=?').run(JSON.stringify(merged),id)}
+    for(const {id:business} of db.prepare('SELECT id FROM tenants').all()){
+      const profile=db.prepare('SELECT id,capabilities FROM access_profiles WHERE business_id=? AND name=?').get(business,name);
+      if(!profile)db.prepare('INSERT INTO access_profiles VALUES(?,?,?,?,?)').run(randomUUID(),business,name,JSON.stringify(capabilities),JSON.stringify(DEFAULT_SCOPE));
+      else{const merged=mergeCapabilities(JSON.parse(profile.capabilities),capabilities);if(merged)db.prepare('UPDATE access_profiles SET capabilities=? WHERE id=?').run(JSON.stringify(merged),profile.id)}
+    }
+  }
   for(const user of db.prepare("SELECT id,role,business_ids FROM users WHERE profile_id LIKE 'system:%'").all()){const businesses=JSON.parse(user.business_ids),business=businesses.find(id=>id!=='*'),profile=business&&db.prepare('SELECT id FROM access_profiles WHERE business_id=? AND name=?').get(business,user.role[0].toUpperCase()+user.role.slice(1));if(profile)db.prepare('UPDATE users SET profile_id=? WHERE id=?').run(profile.id,user.id)}
 }
 
