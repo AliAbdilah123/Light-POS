@@ -96,3 +96,26 @@ Rows in the table above that did not survive a live walkthrough, and what change
 
 New capability: `approveLeave` (manager and admin). Server role capabilities are merged into stored access
 profiles on startup, so existing databases pick up newly added capabilities without losing customisations.
+
+## Incomplete-flow corrections — 15 November 2026
+
+Audit: `docs/incomplete-flow-audit-2026-11-14.html` · demo: `docs/incomplete-flow-fixes-demo.mp4` · branch: `fix/incomplete-flows`.
+
+| Previous claim / gap | Resolution |
+| --- | --- |
+| Order lifecycle progression rejected for cashier and manager | Explicit transition table on the server; payment is required before `Completed`; Orders page captures tender and change. |
+| Completed orders without payment counted as revenue | Paid revenue requires `payment`; tender split always totals 100%. |
+| Aggregate checkout reported success and saved nothing | Store refuses the write; aggregate order entry explains the block; aggregate reads de-duplicate tenant ids. |
+| Cash checkout had no tender, change, receipt or attribution | Tender/change, itemised receipt, cashier and shift recorded on every sale. |
+| Seats and orders were disconnected | Holding/taking an order occupies its table; completion and void release it; manual status is locked while an order is open. |
+| No shift lifecycle | Shift sessions with opening cash, cash sales, expected drawer, variance and per-cashier attribution. |
+| Inventory and profitability were fixtures | Inventory reads recorded stock and unit costs; receiving stock appends a movement; profitability rolls up recipe cost from stock. |
+| Menu planning lab unreachable | Routed at `/admin/menu-lab`; nav now separates Menu catalog from Menu lab. |
+| Expenses could not be edited | Edit modal; line-backed amounts stay locked. |
+| SOP versions bumped without content; archived SOPs runnable | Version editor writes edited steps; only active templates are runnable. |
+| Users had no password reset or role delete UI | Both surfaced against the existing endpoints; dead System filter removed. |
+| Staff could not be created | Staff add/edit/deactivate. |
+| Tenant directory diverged from business data | Tenants seeded from the same constants; portfolio reads tenants and orders. |
+| Time bucketing mixed UTC, browser and Jakarta | One Asia/Jakarta helper applied across dashboards, revenue, insights and lists. |
+
+Verification: `npm test` 115/115 · `npm run test:backend` 23/23 · typecheck, lint and production build clean.

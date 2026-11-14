@@ -112,3 +112,41 @@ test('explicit reset initializes a new database, backs up existing data, and pre
 test('requires one secure production seed password and only reapplies it on explicit reset',async()=>{const productionPath=join(mkdtempSync(join(tmpdir(),'light-pos-production-')),'production.db');process.env.NODE_ENV='production';await assert.rejects(openDatabase(productionPath),/POS_SEED_PASSWORD.*12 characters/);process.env.POS_SEED_PASSWORD='one-secure-production-password';await resetSeedDatabase(productionPath,{resetPasswords:true});const productionApp=await createApp({dbPath:productionPath,secureCookies:false}),productionServer=createServer(productionApp.handler);await new Promise(resolve=>productionServer.listen(0,'127.0.0.1',resolve));try{const productionBase=`http://127.0.0.1:${productionServer.address().port}`;for(const username of ['superadmin','admin.harbor','cashier.garden','manager.multi'])assert.equal((await fetch(`${productionBase}/api/login`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username,password:'one-secure-production-password'})})).status,200)}finally{await new Promise(resolve=>productionServer.close(resolve));productionApp.close()}});
 
 async function passwordForTest(password){const {passwordHash}=await import('./auth.mjs');return passwordHash(password)}
+
+test('advances held orders for operational roles and requires a recorded payment to complete',async()=>{
+  const cashier=await login('cashier.harbor'),harbor=await state(cashier);
+  const order={id:'T-HOLD',businessId:'harbor',createdAt:new Date().toISOString(),service:'Takeaway',status:'Held',lines:[{id:'l1',menuId:harbor.body.data.menus[0].id,name:harbor.body.data.menus[0].name,price:20000,qty:1}],subtotal:20000,discount:0,tax:2000,total:22000};
+  let data=structuredClone(harbor.body.data),revision=harbor.body.revision;
+  data.orders=[order,...data.orders];
+  let result=await write(cashier,revision,data,'Create held order');
+  assert.equal(result.response.status,200,JSON.stringify(result.body));
+  revision=result.body.revision;data=structuredClone(result.body.data);
+  for(const status of ['Preparing','Ready']){data.orders=data.orders.map(o=>o.id==='T-HOLD'?{...o,status}:o);result=await write(cashier,revision,data,`Mark ${status}`);assert.equal(result.response.status,200,JSON.stringify(result.body));revision=result.body.revision;data=structuredClone(result.body.data)}
+  const unpaid=structuredClone(data);unpaid.orders=unpaid.orders.map(o=>o.id==='T-HOLD'?{...o,status:'Completed'}:o);
+  result=await write(cashier,revision,unpaid,'Complete without payment');
+  assert.equal(result.response.status,403);
+  const paid=structuredClone(data);paid.orders=paid.orders.map(o=>o.id==='T-HOLD'?{...o,status:'Completed',payment:'Cash',tendered:25000,change:3000,cashierId:cashier.user.id,cashierName:cashier.user.name}:o);
+  result=await write(cashier,revision,paid,'Complete with payment');
+  assert.equal(result.response.status,200,JSON.stringify(result.body));
+  assert.equal(result.body.data.orders.find(o=>o.id==='T-HOLD').change,3000);
+});
+
+test('aggregate reads de-duplicate tenant ids and shift sessions are single-open and close-only',async()=>{
+  const superadmin=await login('superadmin'),all=await state(superadmin,'all');
+  assert.equal(all.response.status,200);
+  for(const key of ['tables','orderTypes','menus','coupons','sops']){const ids=all.body.data[key].map(row=>row.id);assert.equal(new Set(ids).size,ids.length,`${key} ids must be unique`)}
+  const cashier=await login('cashier.harbor'),harbor=await state(cashier);
+  assert.deepEqual(harbor.body.data.shiftSessions,[]);
+  let data=structuredClone(harbor.body.data),revision=harbor.body.revision;
+  const session={id:'shift-a',businessId:'harbor',cashierId:cashier.user.id,cashierName:cashier.user.name,openedAt:new Date().toISOString(),openingCash:250000};
+  data.shiftSessions=[session];
+  let result=await write(cashier,revision,data,'Open shift');
+  assert.equal(result.response.status,200,JSON.stringify(result.body));
+  revision=result.body.revision;data=structuredClone(result.body.data);
+  const second=structuredClone(data);second.shiftSessions=[...second.shiftSessions,{...session,id:'shift-b'}];
+  result=await write(cashier,revision,second,'Open second shift');
+  assert.equal(result.response.status,403);
+  const closed=structuredClone(data);closed.shiftSessions=closed.shiftSessions.map(row=>({...row,closedAt:new Date().toISOString(),closingCash:260000,variance:10000}));
+  result=await write(cashier,revision,closed,'Close shift');
+  assert.equal(result.response.status,200,JSON.stringify(result.body));
+});

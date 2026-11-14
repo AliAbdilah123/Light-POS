@@ -1,4 +1,4 @@
-const BUSINESS={
+export const BUSINESS={
   harbor:{name:'Harbor Cafe',location:'Kemang',marker:'Kopi Ombak Harbor',target:24500000},
   garden:{name:'Garden Table',location:'Senopati',marker:'Teh Kebun Senja',target:28500000},
   north:{name:'North Bakehouse',location:'Menteng',marker:'Roti Pagi Utara',target:21000000}
@@ -54,7 +54,9 @@ function tenantState(business,reference){
     leaves:[{id:`${prefix}-leave-1`,type:'Annual leave',from:isoDate(reference,7),to:isoDate(reference,8),reason:'Fictional family event',status:'Approved'},{id:`${prefix}-leave-2`,type:'Personal',from:isoDate(reference,12),to:isoDate(reference,12),reason:'Fictional appointment',status:'Pending'}],
     staff:[{id:`${prefix}-staff-1`,name:`Sari ${info.location}`,role:'Cashier',status:'Active'},{id:`${prefix}-staff-2`,name:`Bima ${info.location}`,role:'Manager',status:'Active'},{id:`${prefix}-staff-3`,name:`Reno ${info.location}`,role:'Kitchen',status:'Upcoming'}],
     shifts:[{id:`${prefix}-shift-1`,staff:`Sari ${info.location}`,date:today,start:'07:00',end:'15:00',location:info.location},{id:`${prefix}-shift-2`,staff:`Reno ${info.location}`,date:today,start:'10:00',end:'18:00',location:info.location},{id:`${prefix}-shift-3`,staff:`Bima ${info.location}`,date:tomorrow,start:'09:00',end:'17:00',location:info.location}],
-    inventory:[{id:`${prefix}-stock-coffee`,name:'Arabica coffee',quantity:8.4,unit:'kg',reorderAt:3,status:'Healthy'},{id:`${prefix}-stock-milk`,name:'Fresh milk',quantity:14,unit:'liter',reorderAt:8,status:'Healthy'},{id:`${prefix}-stock-citrus`,name:'Jeruk kasturi',quantity:2.2,unit:'kg',reorderAt:2.5,status:'Low'}],
+    inventory:[{id:`${prefix}-stock-coffee`,name:'Arabica coffee',quantity:8.4,unit:'kg',reorderAt:3,status:'Healthy',unitCost:180000},{id:`${prefix}-stock-milk`,name:'Fresh milk',quantity:14,unit:'liter',reorderAt:8,status:'Healthy',unitCost:20000},{id:`${prefix}-stock-citrus`,name:'Jeruk kasturi',quantity:2.2,unit:'kg',reorderAt:2.5,status:'Low',unitCost:45000}],
+    inventoryMovements:[{id:`${prefix}-move-1`,itemId:`${prefix}-stock-coffee`,type:'receive',quantity:2,unit:'kg',note:'Supplier receipt #R-88',at:isoTime(reference,0,7,30),actor:`Bima ${info.location}`},{id:`${prefix}-move-2`,itemId:`${prefix}-stock-milk`,type:'consume',quantity:3,unit:'liter',note:'Morning service',at:isoTime(reference,0,9,15),actor:`Sari ${info.location}`}],
+    shiftSessions:[],
     sops:[{id:`${prefix}-sop-open`,title:`Opening ${info.location}`,version:3,steps:['Log refrigeration temperature','Calibrate coffee grinder','Count opening cash','Sanitize service counter'],active:true},{id:`${prefix}-sop-close`,title:`Closing ${info.location}`,version:2,steps:['Record ingredient waste','Clean preparation area','Lock cold storage'],active:true}],
     sopHistory:[`${yesterday} 21:12 · Sari ${info.location} · Closing ${info.location} v2`],
     messages:[{id:`${prefix}-message-marker`,from:`Manager · ${info.location}`,text:`Today we are highlighting ${info.marker}.`,time:`${today} · 08:10`},{id:`${prefix}-message-safety`,from:'Operations',text:'Complete the refrigeration log before the lunch handover.',time:`${yesterday} · 17:45`}],

@@ -24,7 +24,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { Button } from './ui/button';
 
-import { dashboardPath } from '../domain';
+import { dashboardPath, type DemoMode } from '../domain';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
 
 type NavEntry = string | readonly [string, string, LucideIcon];
@@ -71,7 +71,8 @@ const nav: Record<'cashier' | 'manager' | 'admin' | 'kitchen' | 'display', reado
     ['Staff & shifts', '/admin/staff', Users],
     ['Targets & schedule', '/admin/operations', Target],
     'Catalogue',
-    ['Menu lab', '/admin/menu', Coffee],
+    ['Menu catalog', '/admin/menu', Coffee],
+    ['Menu lab', '/admin/menu-lab', Target],
     ['Experiments', '/admin/experiments', Target],
     ['Order types', '/admin/order-types', ClipboardList],
     ['Tables', '/admin/tables', Users],
@@ -289,6 +290,7 @@ function Navigation({ idPrefix, role, navRole, global, pathname, logout, user, b
   tenants: ReturnType<typeof useStore>['tenants'];
   onNavigate?: () => void;
 }) {
+  const { demo, setDemo } = useStore();
   const entries: readonly NavEntry[] = nav[navRole];
   const extras: readonly NavEntry[] = global ? [['Tenants', '/admin/tenants', Users] as const] : [];
   const items: readonly NavEntry[] = [...entries, ...extras];
@@ -297,7 +299,7 @@ function Navigation({ idPrefix, role, navRole, global, pathname, logout, user, b
       <section className="sidebar-context" aria-label="Account and tenant">
         <div className="sidebar-user">
           <span aria-hidden="true">{user.name.charAt(0).toUpperCase()}</span>
-          <div><strong>{user.name}</strong><small>@{user.username} · {role}</small></div>
+          <div title={`${user.name} · @${user.username} · ${role}`}><strong>{user.name}</strong><small>@{user.username} · {role}</small></div>
         </div>
         <TenantSelect id={`${idPrefix}-business`} global={global} value={business} tenants={tenants} onChange={setBusiness} />
       </section>
@@ -314,6 +316,7 @@ function Navigation({ idPrefix, role, navRole, global, pathname, logout, user, b
         })}
       </nav>
       <div className="sidebar-foot">
+        <label className="demo-select"><span>Demo state</span><select aria-label="Demo data state" value={demo} onChange={(event) => setDemo(event.target.value as DemoMode)}><option value="ready">Ready</option><option value="loading">Loading</option><option value="empty">Empty</option><option value="error">Error</option></select></label>
         <Button className="sidebar-logout" onClick={() => void logout()}>
           <LogOut aria-hidden="true" />
           Sign out

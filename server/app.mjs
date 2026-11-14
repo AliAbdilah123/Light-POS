@@ -2,7 +2,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {randomBytes,randomUUID} from 'node:crypto';
 import {Readable} from 'node:stream';
 import {hashToken,passwordHash,passwordMatches,safeEqual} from './auth.mjs';
-import {seedReceipts,seedState} from './seed.mjs';
+import {BUSINESS,seedReceipts,seedState} from './seed.mjs';
 import {createReceiptUpload} from './receiptUpload.mjs';
 import {extractMenuPhotos,parseMenuPhotos} from './menuImport.mjs';
 
@@ -13,8 +13,8 @@ const SYSTEM_PROFILES=Object.fromEntries(Object.entries(ROLE_CAPABILITIES).map((
 const DEFAULT_SCOPE={mode:'all',categoryIds:[],itemIds:[]};
 export const BUSINESS_IDS=['harbor','garden','north'];
 const BUSINESSES=new Set(BUSINESS_IDS);
-const MUTABLE={cashier:new Set(['orders','notes','leaves','messagesRead','tables']),manager:new Set(['orders','notes','expenses','inventory','sopHistory','tables','leaves']),admin:null,superadmin:null,kitchen:new Set(['orders','menus','experiments']),display:new Set()};
-const REQUIRED=['orders','orderTypes','tables','menus','experiments','coupons','notes','expenses','leaves','staff','shifts','inventory','sops','sopHistory','messages','messagesRead','audit','targets','planningNotes','schedules'];
+const MUTABLE={cashier:new Set(['orders','notes','leaves','messagesRead','tables','shiftSessions']),manager:new Set(['orders','notes','expenses','inventory','inventoryMovements','sopHistory','tables','leaves','shiftSessions']),admin:null,superadmin:null,kitchen:new Set(['orders','menus','experiments']),display:new Set()};
+const REQUIRED=['orders','orderTypes','tables','menus','experiments','coupons','notes','expenses','leaves','staff','shifts','shiftSessions','inventory','inventoryMovements','sops','sopHistory','messages','messagesRead','audit','targets','planningNotes','schedules'];
 const ARRAY_KEYS=REQUIRED.filter(key=>!['targets','planningNotes','schedules'].includes(key));
 const isObject=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const text=(value,max=300)=>typeof value==='string'&&value.length<=max;
@@ -34,7 +34,24 @@ function validState(data,business){
   return isObject(data.planningNotes)&&isObject(data.schedules)&&JSON.stringify(data).length<=1_000_000;
 }
 function validNewOrder(order,state){const subtotal=order.lines.reduce((sum,line)=>sum+line.price*line.qty,0),coupon=state.coupons.find(item=>item.active&&item.code.toLowerCase()===String(order.coupon||'').toLowerCase()),raw=coupon?(coupon.type==='percent'?Math.round(subtotal*coupon.value/100):coupon.value):0,discount=Math.min(subtotal,raw),tax=Math.round((subtotal-discount)*.1);return order.subtotal===subtotal&&order.discount===discount&&order.tax===tax&&order.total===subtotal-discount+tax&&(['Completed','Held'].includes(order.status))&&(order.status!=='Completed'||['Cash','QRIS'].includes(order.payment))}
-function operationalOrdersSafe(before,after){const oldById=new Map(before.orders.map(order=>[order.id,order])),newById=new Map(after.orders.map(order=>[order.id,order]));for(const old of before.orders){const current=newById.get(old.id);if(!current){if(old.status!=='Held')return false;continue}if(same(old,current))continue;if(current.status==='Voided'&&text(current.voidReason,300)&&current.voidReason.trim()&&same({...old,status:'Voided',voidReason:current.voidReason},current))continue;if(old.status==='Completed'&&current.status==='Held'&&Date.now()-new Date(old.createdAt).getTime()<300000){const expected={...old,status:'Held'};delete expected.payment;if(same(expected,current))continue}return false}return after.orders.filter(order=>!oldById.has(order.id)).every(order=>validNewOrder(order,after))}
+const ORDER_TRANSITIONS={Held:['Preparing'],Preparing:['Ready']};
+function operationalOrdersSafe(before,after){
+  const oldById=new Map(before.orders.map(order=>[order.id,order])),newById=new Map(after.orders.map(order=>[order.id,order]));
+  for(const old of before.orders){
+    const current=newById.get(old.id);
+    if(!current){if(old.status!=='Held')return false;continue}
+    if(same(old,current))continue;
+    if(current.status==='Voided'&&text(current.voidReason,300)&&current.voidReason.trim()&&same({...old,status:'Voided',voidReason:current.voidReason},current))continue;
+    const allowed=ORDER_TRANSITIONS[old.status]||[];
+    if(allowed.includes(current.status)&&same({...old,status:current.status},current))continue;
+    if(current.status==='Completed'&&old.status!=='Completed'&&['Cash','QRIS'].includes(current.payment)){
+      const ignore=new Set(['status','payment','tendered','change','cashierId','cashierName']),canonical=value=>JSON.stringify(Object.keys(value).filter(key=>value[key]!==undefined&&!ignore.has(key)).sort().map(key=>[key,value[key]]));
+      if(canonical({...old,status:'Completed'})===canonical(current))continue
+    }
+    if(old.status==='Completed'&&current.status==='Held'&&Date.now()-new Date(old.createdAt).getTime()<300000){const expected={...old,status:'Held'};delete expected.payment;if(same(expected,current))continue}
+    return false
+  }
+  return after.orders.filter(order=>!oldById.has(order.id)).every(order=>validNewOrder(order,after))}
 function statusOnlyTables(before,after){if(before.tables.length!==after.tables.length)return false;const oldById=new Map(before.tables.map(table=>[table.id,table]));return after.tables.every(table=>{const old=oldById.get(table.id);return old&&same({...old,status:table.status},table)})}
 function kitchenSafe(before,after){
   const oldOrders=new Map(before.orders.map(order=>[order.id,order]));
@@ -43,6 +60,26 @@ function kitchenSafe(before,after){
   if(after.menus.length!==before.menus.length||after.menus.some(item=>!availabilityOnly(oldMenus.get(item.id),item)))return false;
   return after.experiments.every((experiment,index)=>{const old=before.experiments[index];if(!old||experiment.id!==old.id||experiment.menuDrafts?.length!==old.menuDrafts?.length)return same(experiment,old);const oldDrafts=new Map(old.menuDrafts.map(item=>[item.id,item]));return same({...old,menuDrafts:experiment.menuDrafts},experiment)&&experiment.menuDrafts.every(item=>availabilityOnly(oldDrafts.get(item.id),item))});
 }
+function shiftsSafe(before,after,user,business){
+  const oldById=new Map(before.shiftSessions.map(row=>[row.id,row])),open=after.shiftSessions.filter(row=>!row.closedAt);
+  if(open.length>1)return false;
+  for(const row of after.shiftSessions){
+    const old=oldById.get(row.id);
+    if(!old){
+      if(row.closedAt||row.cashierId!==user.id||row.businessId!==business||!text(row.cashierName,200)||!number(row.openingCash)||row.openingCash<0)return false;
+      continue
+    }
+    if(!old.closedAt&&row.closedAt&&row.cashierId===user.id&&number(row.closingCash)&&row.closingCash>=0&&same({...old,closedAt:row.closedAt,closingCash:row.closingCash,variance:row.variance},row))continue;
+    if(!same(old,row))return false
+  }
+  return after.shiftSessions.length>=before.shiftSessions.length
+}
+function movementsSafe(before,after){
+  if(after.inventoryMovements.length<before.inventoryMovements.length)return false;
+  const oldIds=new Set(before.inventoryMovements.map(row=>row.id));
+  for(const row of after.inventoryMovements)if(!oldIds.has(row.id)&&(!text(row.id,100)||!text(row.itemId,100)||!['receive','consume','adjust'].includes(row.type)||!number(row.quantity)||row.quantity<=0))return false;
+  return true
+}
 function authorizeMutation(user,business,before,after){
   if(!canAccess(user,business))return 'Business access denied.';
   const changed=changedKeys(before,after),allowed=MUTABLE[user.role];
@@ -50,6 +87,8 @@ function authorizeMutation(user,business,before,after){
   if(allowed&&changed.some(key=>!allowed.has(key)))return 'Action is not allowed for this role.';
   if(['cashier','manager'].includes(user.role)&&changed.includes('orders')&&!operationalOrdersSafe(before,after))return 'Order mutation is not allowed.';
   if(['cashier','manager'].includes(user.role)&&changed.includes('tables')&&!statusOnlyTables(before,after))return 'Only table status may be changed.';
+  if(changed.includes('shiftSessions')&&!shiftsSafe(before,after,user,business))return 'Shift session change is not allowed.';
+  if(changed.includes('inventoryMovements')&&['manager','admin','superadmin'].includes(user.role)&&!movementsSafe(before,after))return 'Inventory movements are append-only.';
   if(changed.includes('orders')&&user.menuScope?.mode==='limited'){const catalog=new Map(before.menus.map(item=>[item.id,item])),allowedMenu=id=>{const item=catalog.get(id);if(!item||item.archived||!user.menuScope.categoryIds.includes(item.category)&&!user.menuScope.itemIds.includes(id))return false;if((item.kind||'item')!=='bundle')return true;return item.versions?.find(v=>v.version===item.currentVersion)?.components?.every(component=>allowedMenu(component.menuId))===true};for(const order of after.orders.filter(order=>!before.orders.some(old=>old.id===order.id)))if(order.lines.some(line=>!allowedMenu(line.menuId)))return 'Menu item access denied.'}
   if(user.role==='kitchen'&&!kitchenSafe(before,after))return 'Kitchen may only mark preparing orders ready or change menu availability.';
   return '';
@@ -65,7 +104,11 @@ async function readJson(req){let size=0,body='';for await(const chunk of req){si
 async function readPaymentQr(req){let size=0,chunks=[];for await(const chunk of req){size+=chunk.length;if(size>2*1024*1024)throw Object.assign(Error('Payment QR must be 2 MB or smaller.'),{status:413});chunks.push(chunk)}const bytes=Buffer.concat(chunks),mime=req.headers['content-type']?.split(';')[0],signatures={'image/png':value=>value.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])),'image/jpeg':value=>value[0]===255&&value[1]===216&&value[2]===255,'image/webp':value=>value.subarray(0,4).toString()==='RIFF'&&value.subarray(8,12).toString()==='WEBP'};if(!signatures[mime])throw Object.assign(Error('PNG, JPEG, or WebP required.'),{status:415});if(!bytes.length)throw Object.assign(Error('Payment QR image required.'),{status:400});if(!signatures[mime](bytes))throw Object.assign(Error('Image content does not match its type.'),{status:400});return{bytes,mime}}
 
 function migrateEnvelope(raw,reference=new Date()){
-  if(raw?.schemaVersion===2&&isObject(raw.tenants)&&[...BUSINESSES].every(id=>isObject(raw.tenants[id])))return raw;
+  if(raw?.schemaVersion===2&&isObject(raw.tenants)&&[...BUSINESSES].every(id=>isObject(raw.tenants[id]))){
+    const envelope=structuredClone(raw);
+    for(const business of BUSINESSES){const target=envelope.tenants[business];for(const key of REQUIRED)if(!(key in target))target[key]=key==='targets'?{[business]:0}:key==='planningNotes'||key==='schedules'?{}:[]}
+    return envelope
+  }
   const seeded=seedState(reference),legacy=isObject(raw)?raw:{};
   for(const business of BUSINESSES)if(!seeded.tenants[business])seeded.tenants[business]={...structuredClone(seeded.tenants.harbor),...Object.fromEntries(ARRAY_KEYS.map(key=>[key,[]])),targets:{[business]:0},planningNotes:{},schedules:{}};
   for(const business of BUSINESSES){const target=seeded.tenants[business];if(Array.isArray(legacy.orders)){const orders=legacy.orders.filter(order=>order.businessId===business);if(orders.length)target.orders=orders}}
@@ -76,6 +119,7 @@ function migrateEnvelope(raw,reference=new Date()){
 function allData(envelope){
   const result=Object.fromEntries(REQUIRED.map(key=>[key,ARRAY_KEYS.includes(key)?[]:{}]));
   for(const business of BUSINESSES){const tenant=envelope.tenants[business];for(const key of ARRAY_KEYS){if(['sopHistory','messagesRead','audit'].includes(key))result[key].push(...tenant[key].map(value=>`[${business}] ${value}`));else result[key].push(...tenant[key].map(value=>isObject(value)?{...value,businessId:business}:value))}Object.assign(result.targets,tenant.targets);for(const [key,value] of Object.entries(tenant.planningNotes))result.planningNotes[`${business}:${key}`]=value;for(const [key,value] of Object.entries(tenant.schedules))result.schedules[`${business}:${key}`]=value}
+  for(const key of ARRAY_KEYS){if(!result[key].length||!isObject(result[key][0]))continue;const seen=new Set();result[key]=result[key].filter(value=>{const id=isObject(value)?value.id:value;if(seen.has(id))return false;seen.add(id);return true})}
   return result;
 }
 
@@ -100,7 +144,7 @@ function migrateProfiles(db){
   for(const user of db.prepare("SELECT id,role,business_ids FROM users WHERE profile_id LIKE 'system:%'").all()){const businesses=JSON.parse(user.business_ids),business=businesses.find(id=>id!=='*'),profile=business&&db.prepare('SELECT id FROM access_profiles WHERE business_id=? AND name=?').get(business,user.role[0].toUpperCase()+user.role.slice(1));if(profile)db.prepare('UPDATE users SET profile_id=? WHERE id=?').run(profile.id,user.id)}
 }
 
-export function initializeSchema(db){db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; CREATE TABLE IF NOT EXISTS app_state (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL, role TEXT NOT NULL, business_ids TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, profile_id TEXT, active INTEGER NOT NULL DEFAULT 1); CREATE TABLE IF NOT EXISTS access_profiles (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, capabilities TEXT NOT NULL, menu_scope TEXT NOT NULL, UNIQUE(business_id,name)); CREATE TABLE IF NOT EXISTS tenants (id TEXT PRIMARY KEY,name TEXT NOT NULL,location TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1); CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, csrf_token TEXT NOT NULL, expires_at TEXT NOT NULL, created_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, actor_id TEXT NOT NULL, actor_username TEXT NOT NULL, actor_role TEXT NOT NULL, business_id TEXT NOT NULL, action TEXT NOT NULL, revision INTEGER NOT NULL, created_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, actor_id TEXT NOT NULL, business_id TEXT NOT NULL, name TEXT NOT NULL, mime TEXT NOT NULL, bytes BLOB NOT NULL, result TEXT NOT NULL, created_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS tenant_payment_qr (business_id TEXT PRIMARY KEY REFERENCES tenants(id),mime TEXT NOT NULL,bytes BLOB NOT NULL,updated_by TEXT NOT NULL REFERENCES users(id),updated_at TEXT NOT NULL);');const columns=db.prepare('PRAGMA table_info(users)').all();if(!columns.some(x=>x.name==='profile_id'))db.exec('ALTER TABLE users ADD COLUMN profile_id TEXT');if(!columns.some(x=>x.name==='active'))db.exec('ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1');for(const id of BUSINESS_IDS)db.prepare('INSERT OR IGNORE INTO tenants VALUES(?,?,?,1)').run(id,id[0].toUpperCase()+id.slice(1),'Indonesia')}
+export function initializeSchema(db){db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; CREATE TABLE IF NOT EXISTS app_state (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL, role TEXT NOT NULL, business_ids TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, profile_id TEXT, active INTEGER NOT NULL DEFAULT 1); CREATE TABLE IF NOT EXISTS access_profiles (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, capabilities TEXT NOT NULL, menu_scope TEXT NOT NULL, UNIQUE(business_id,name)); CREATE TABLE IF NOT EXISTS tenants (id TEXT PRIMARY KEY,name TEXT NOT NULL,location TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1); CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, csrf_token TEXT NOT NULL, expires_at TEXT NOT NULL, created_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, actor_id TEXT NOT NULL, actor_username TEXT NOT NULL, actor_role TEXT NOT NULL, business_id TEXT NOT NULL, action TEXT NOT NULL, revision INTEGER NOT NULL, created_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, actor_id TEXT NOT NULL, business_id TEXT NOT NULL, name TEXT NOT NULL, mime TEXT NOT NULL, bytes BLOB NOT NULL, result TEXT NOT NULL, created_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS tenant_payment_qr (business_id TEXT PRIMARY KEY REFERENCES tenants(id),mime TEXT NOT NULL,bytes BLOB NOT NULL,updated_by TEXT NOT NULL REFERENCES users(id),updated_at TEXT NOT NULL);');const columns=db.prepare('PRAGMA table_info(users)').all();if(!columns.some(x=>x.name==='profile_id'))db.exec('ALTER TABLE users ADD COLUMN profile_id TEXT');if(!columns.some(x=>x.name==='active'))db.exec('ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1');for(const id of BUSINESS_IDS)db.prepare('INSERT OR IGNORE INTO tenants VALUES(?,?,?,1)').run(id,BUSINESS[id]?.name||id[0].toUpperCase()+id.slice(1),BUSINESS[id]?.location||'Indonesia')}
 
 export async function openDatabase(filename=process.env.POS_DB_PATH||'sqlite.db'){
   const db=new DatabaseSync(filename);initializeSchema(db);db.exec('CREATE TABLE IF NOT EXISTS access_profile_templates (id TEXT PRIMARY KEY, role TEXT NOT NULL UNIQUE, name TEXT NOT NULL UNIQUE, capabilities TEXT NOT NULL, menu_scope TEXT NOT NULL)');

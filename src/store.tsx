@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import {createContext,useContext,useEffect,useReducer,useRef,useState,type ReactNode} from 'react';
-import {calculateTotals,cartReducer,menuForSession,type Capability,type CartAction,type CartLine,type Coupon,type DemoMode,type Expense,type Experiment,type InventoryItem,type Leave,type MenuItem,type MenuScope,type Message,type Note,type Order,type OrderType,type Role,type ServiceMode,type Shift,type Sop,type Staff,type Table} from './domain';
+import {calculateTotals,cartReducer,menuForSession,type Capability,type CartAction,type CartLine,type Coupon,type DemoMode,type Expense,type Experiment,type InventoryItem,type InventoryMovement,type Leave,type MenuItem,type MenuScope,type Message,type Note,type Order,type OrderType,type Role,type ServiceMode,type Shift,type ShiftSession,type Sop,type Staff,type Table,type TableStatus} from './domain';
 import {Button} from './components/ui/button';
 import {Card} from './components/ui/card';
 import {Input} from './components/ui/input';
@@ -8,10 +8,10 @@ import {Label} from './components/ui/label';
 import {Alert,AlertDescription} from './components/ui/alert';
 
 
-export type Data={orders:Order[];orderTypes:OrderType[];tables:Table[];menus:MenuItem[];experiments:Experiment[];coupons:Coupon[];notes:Note[];expenses:Expense[];leaves:Leave[];staff:Staff[];shifts:Shift[];inventory:InventoryItem[];sops:Sop[];sopHistory:string[];messages:Message[];messagesRead:string[];audit:string[];targets:Record<string,number>;planningNotes:Record<string,string>;schedules:Record<string,string>};
+export type Data={orders:Order[];orderTypes:OrderType[];tables:Table[];menus:MenuItem[];experiments:Experiment[];coupons:Coupon[];notes:Note[];expenses:Expense[];leaves:Leave[];staff:Staff[];shifts:Shift[];shiftSessions:ShiftSession[];inventory:InventoryItem[];inventoryMovements:InventoryMovement[];sops:Sop[];sopHistory:string[];messages:Message[];messagesRead:string[];audit:string[];targets:Record<string,number>;planningNotes:Record<string,string>;schedules:Record<string,string>};
 export type Session={id:string;username:string;name:string;role:Role;businessIds:string[];csrfToken:string;profileId?:string;capabilities?:Capability[];menuScope?:MenuScope};
 export type Tenant={id:string;name:string;location:string;active:boolean};
-interface Ctx {role:Role;user:Session;business:string;setBusiness:(s:string)=>void;tenants:Tenant[];reloadTenants:()=>Promise<void>;theme:'light'|'dark';toggleTheme:()=>void;demo:DemoMode;setDemo:(d:DemoMode)=>void;data:Data;sessionMenus:MenuItem[];update:(fn:(d:Data)=>Data,action?:string)=>void;cart:CartLine[];dispatch:(a:CartAction)=>void;service:ServiceMode;setService:(s:ServiceMode)=>void;tableIds:string[];setTableIds:(s:string[])=>void;coupon?:Coupon;setCoupon:(c?:Coupon)=>void;totals:ReturnType<typeof calculateTotals>;completeOrder:(payment:'Cash'|'QRIS')=>Order;clearCart:()=>void;logout:()=>Promise<void>;syncError:string;reload:()=>Promise<void>;writable:boolean}
+interface Ctx {role:Role;user:Session;business:string;setBusiness:(s:string)=>void;tenants:Tenant[];reloadTenants:()=>Promise<void>;theme:'light'|'dark';toggleTheme:()=>void;demo:DemoMode;setDemo:(d:DemoMode)=>void;data:Data;sessionMenus:MenuItem[];update:(fn:(d:Data)=>Data,action?:string)=>void;cart:CartLine[];dispatch:(a:CartAction)=>void;service:ServiceMode;setService:(s:ServiceMode)=>void;tableIds:string[];setTableIds:(s:string[])=>void;coupon?:Coupon;setCoupon:(c?:Coupon)=>void;totals:ReturnType<typeof calculateTotals>;completeOrder:(payment:'Cash'|'QRIS',tendered?:number)=>Order;activeShift?:ShiftSession;setTableStatus:(ids:string[],status:TableStatus)=>void;clearCart:()=>void;logout:()=>Promise<void>;syncError:string;reload:()=>Promise<void>;writable:boolean}
 const Context=createContext<Ctx|null>(null);
 export const API=`${import.meta.env.BASE_URL}api`;
 const api=async(path:string,options:RequestInit={})=>{const response=await fetch(`${API}${path}`,{credentials:'same-origin',...options});const body=await response.json().catch(()=>({error:'Invalid server response.'}));if(!response.ok)throw Object.assign(Error(body.error||'Request failed.'),{status:response.status,body});return body};
@@ -67,8 +67,19 @@ export function StoreProvider({children}:{children:ReactNode}){
   if(!session)return <Login onLogin={loggedIn}/>;
   if(!data)return <main className="auth-page"><section className="auth-card"><h1>Workspace unavailable</h1><p>{syncError||'The POS data could not be loaded.'}</p><Button onClick={()=>void loadState(session,business)}>Try again</Button><Button onClick={()=>void logout()}>Sign out</Button></section></main>;
   const totals=calculateTotals(cart,coupon),clearCart=()=>{dispatch({type:'clear'});setCoupon(undefined);setTableIds([])};
-  const completeOrder=(payment:'Cash'|'QRIS')=>{if(data.orderTypes.find(x=>x.name===service)?.requiresTable&&!tableIds.length)throw Error('At least one table is required.');const order:Order={id:`S-${Date.now().toString(36).toUpperCase()}`,businessId:business==='all'?'harbor':business,createdAt:new Date().toISOString(),service,tableIds:data.orderTypes.find(x=>x.name===service)?.requiresTable?tableIds:undefined,status:'Completed',lines:structuredClone(cart),...totals,coupon:coupon?.code,payment};update(d=>({...d,orders:[order,...d.orders]}),`${payment} payment completed for ${order.id}`);return order};
+  const activeShift=data.shiftSessions.find(x=>!x.closedAt&&x.cashierId===session.id)||data.shiftSessions.find(x=>!x.closedAt&&x.cashierName===session.name);
+  const completeOrder=(payment:'Cash'|'QRIS',tendered?:number)=>{
+    if(business==='all')throw Error('Select one business before taking payment.');
+    const requiresTable=!!data.orderTypes.find(x=>x.name===service)?.requiresTable;
+    if(requiresTable&&!tableIds.length)throw Error('At least one table is required.');
+    if(payment==='Cash'&&tendered!==undefined){if(!Number.isFinite(tendered)||tendered<totals.total)throw Error('Cash received must cover the amount due.')}
+    const tableIdsForOrder=requiresTable?tableIds:undefined;
+    const order:Order={id:`S-${Date.now().toString(36).toUpperCase()}`,businessId:business,createdAt:new Date().toISOString(),service,tableIds:tableIdsForOrder,status:'Completed',lines:structuredClone(cart),...totals,coupon:coupon?.code,payment,cashierId:session.id,cashierName:session.name,...(activeShift?{shiftId:activeShift.id}:{}),...(payment==='Cash'&&tendered!==undefined?{tendered,change:Math.round(tendered-totals.total)}:{})};
+    update(d=>({...d,orders:[order,...d.orders]}),`${payment} payment completed for ${order.id}`);
+    return order
+  };
+  const setTableStatus=(ids:string[],status:TableStatus)=>{if(!ids.length)return;update(d=>({...d,tables:d.tables.map(t=>ids.includes(t.id)?{...t,status}:t)}),`Table ${ids.join(', ')} marked ${status.toLowerCase()}`)};
   const sessionMenus=menuForSession(data.menus,data.experiments);
-  return <Context.Provider value={{role:session.role,user:session,business,setBusiness,tenants,reloadTenants,theme,toggleTheme:()=>setTheme(t=>t==='dark'?'light':'dark'),demo,setDemo,data,sessionMenus,update,cart,dispatch,service,setService,tableIds,setTableIds,coupon,setCoupon,totals,completeOrder,clearCart,logout,syncError,reload:()=>loadState(session,business),writable:business!=='all'}}>{syncError&&<div className="sync-banner" role="alert">{syncError} <button onClick={()=>void loadState(session,business)}>Reload</button></div>}{children}</Context.Provider>;
+  return <Context.Provider value={{role:session.role,user:session,business,setBusiness,tenants,reloadTenants,theme,toggleTheme:()=>setTheme(t=>t==='dark'?'light':'dark'),demo,setDemo,data,sessionMenus,update,cart,dispatch,service,setService,tableIds,setTableIds,coupon,setCoupon,totals,completeOrder,clearCart,activeShift,setTableStatus,logout,syncError,reload:()=>loadState(session,business),writable:business!=='all'}}>{syncError&&<div className="sync-banner" role="alert">{syncError} <button onClick={()=>void loadState(session,business)}>Reload</button></div>}{children}</Context.Provider>;
 }
 export const useStore=()=>{const context=useContext(Context);if(!context)throw Error('Store missing');return context};

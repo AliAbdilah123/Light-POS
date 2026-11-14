@@ -31,20 +31,52 @@ export function menuForSession(menus:MenuItem[],experiments:Experiment[]){return
 export function finalizeExperiment(menus:MenuItem[],experiment:Experiment,at=new Date().toISOString()){if(experiment.status==='finalized')throw Error('Experiment already finalized');const drafts=new Map(experiment.menuDrafts.map(d=>[d.id,d]));const apply=(d:MenuItem)=>{const draft=currentVersion(d);if(!draft)return d;const existing=menus.find(m=>m.id===d.id);const version=(existing?.currentVersion||0)+1;return{...d,currentVersion:version,name:draft.name,category:draft.category,price:draft.price,versions:[...(existing?.versions||[]),{...draft,version,createdAt:at}]}};return{menus:[...menus.map(m=>drafts.has(m.id)?apply(drafts.get(m.id)!):m),...experiment.menuDrafts.filter(d=>!menus.some(m=>m.id===d.id)).map(apply)],experiment:{...experiment,status:'finalized' as const,finalizedAt:at}}}
 export function validateBundle(id:string,components:BundleComponent[],menus:MenuItem[]){if(components.length<2)return 'Bundle requires at least two components.';if(new Set(components.map(x=>x.menuId)).size!==components.length)return 'Bundle component menus must be unique.';if(components.some(x=>!Number.isInteger(x.quantity)||x.quantity<=0))return 'Component quantities must be positive integers.';if(components.some(x=>x.menuId===id))return 'A bundle cannot contain itself.';const selected=components.map(x=>menus.find(m=>m.id===x.menuId));if(selected.some(m=>!m||m.archived))return 'Components must be current, non-archived menus.';if(selected.some(m=>(m?.kind||'item')!=='item'))return 'Bundles may contain standard menus only.';return ''}
 export interface CartLine {id:string;menuId:string;name:string;price:number;basePrice?:number;qty:number;variations?:SelectedVariation[];modifier?:string;note?:string}
-export interface Order {id:string;businessId:string;createdAt:string;service:ServiceMode;table?:string;tableIds?:string[];status:OrderStatus;lines:CartLine[];subtotal:number;discount:number;tax:number;total:number;coupon?:string;payment?:'Cash'|'QRIS';voidReason?:string}
+export interface Order {id:string;businessId:string;createdAt:string;service:ServiceMode;table?:string;tableIds?:string[];status:OrderStatus;lines:CartLine[];subtotal:number;discount:number;tax:number;total:number;coupon?:string;payment?:'Cash'|'QRIS';tendered?:number;change?:number;cashierId?:string;cashierName?:string;shiftId?:string;voidReason?:string}
 export interface Coupon {id:string;code:string;type:'percent'|'fixed';value:number;reason:string;active:boolean}
 export interface Note {id:string;text:string;date:string}
 export interface ExpenseLine {id:string;description:string;quantity?:number;unit?:string;amount:number}
 export interface Expense {id:string;label:string;category:string;amount:number;date:string;lines:ExpenseLine[]}
 export interface Leave {id:string;type:string;from:string;to:string;reason:string;status:'Pending'|'Approved'|'Declined'}
 export interface Shift {id:string;staff:string;date:string;start:string;end:string;location:string}
+export interface ShiftSession {id:string;businessId:string;cashierId:string;cashierName:string;openedAt:string;openingCash:number;closedAt?:string;closingCash?:number;variance?:number}
 export interface Staff {id:string;name:string;role:string;status:string}
-export interface InventoryItem {id:string;name:string;quantity:number;unit:string;reorderAt:number;status:string}
+export interface InventoryItem {id:string;name:string;quantity:number;unit:string;reorderAt:number;status:string;unitCost?:number}
+export type InventoryMovementType='receive'|'consume'|'adjust';
+export interface InventoryMovement {id:string;itemId:string;type:InventoryMovementType;quantity:number;unit:string;note:string;at:string;actor:string}
 export interface Message {id:string;from:string;text:string;time:string;businessId?:string}
 export interface Sop {id:string;title:string;version:number;steps:string[];active:boolean}
 export const idr=(n:number)=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n);
-export const localDate=(s:string)=>new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'}).format(new Date(s));
-export function unitConvert(quantity:number,from:'kg'|'g'|'l'|'ml',to:'kg'|'g'|'l'|'ml') {const dimension={kg:'mass',g:'mass',l:'volume',ml:'volume'} as const;if(dimension[from]!==dimension[to]) throw new Error('Unit dimensions must match');const base=from==='kg'||from==='l'?quantity*1000:quantity;return to==='kg'||to==='l'?base/1000:base}
+export const BUSINESS_TZ='Asia/Jakarta';
+export const localDay=(value:string|Date)=>new Intl.DateTimeFormat('en-CA',{timeZone:BUSINESS_TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
+export const localHour=(value:string|Date)=>Number(new Intl.DateTimeFormat('en-GB',{timeZone:BUSINESS_TZ,hour:'2-digit',hour12:false}).format(new Date(value)));
+export const localWeekday=(value:string|Date)=>new Intl.DateTimeFormat('en-US',{timeZone:BUSINESS_TZ,weekday:'long'}).format(new Date(value));
+export const localDateTime=(value:string|Date)=>new Intl.DateTimeFormat('id-ID',{timeZone:BUSINESS_TZ,dateStyle:'medium',timeStyle:'short'}).format(new Date(value));
+export const localDate=(s:string)=>new Intl.DateTimeFormat('id-ID',{timeZone:BUSINESS_TZ,day:'numeric',month:'short',year:'numeric'}).format(new Date(s));
+type ConvertUnit='kg'|'g'|'l'|'ml'|'liter';
+export function unitConvert(quantity:number,from:ConvertUnit,to:ConvertUnit) {
+  const norm=(unit:ConvertUnit):'kg'|'g'|'l'|'ml'=>unit==='liter'?'l':unit;
+  const a=norm(from),b=norm(to),dimension={kg:'mass',g:'mass',l:'volume',ml:'volume'} as const;
+  if(dimension[a]!==dimension[b]) throw new Error('Unit dimensions must match');
+  const base=a==='kg'||a==='l'?quantity*1000:quantity;
+  return b==='kg'||b==='l'?base/1000:base
+}
+const moneyWords=(value:string)=>new Set(value.toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(word=>word.length>3));
+export function matchInventoryItem(name:string,inventory:InventoryItem[]){
+  const target=moneyWords(name);let best:InventoryItem|undefined,bestScore=0;
+  for(const item of inventory){const score=[...moneyWords(item.name)].filter(word=>target.has(word)).length;if(score>bestScore){best=item;bestScore=score}}
+  return bestScore>0?best:undefined
+}
+export function ingredientCost(ingredient:Ingredient,inventory:InventoryItem[]){
+  if(!ingredient.quantity||!ingredient.unit)return 0;
+  const item=matchInventoryItem(ingredient.name,inventory);if(!item?.unitCost)return 0;
+  try{return unitConvert(ingredient.quantity,ingredient.unit as ConvertUnit,item.unit as ConvertUnit)*item.unitCost}catch{return 0}
+}
+export function recipeCost(version:MenuVersion|undefined,inventory:InventoryItem[]){
+  if(!version)return{cost:0,priced:0,total:0};
+  const parts=version.ingredients.filter(ingredient=>ingredient.quantity&&ingredient.unit);
+  const priced=parts.filter(ingredient=>ingredientCost(ingredient,inventory)>0).length;
+  return{cost:Math.round(parts.reduce((sum,ingredient)=>sum+ingredientCost(ingredient,inventory),0)),priced,total:parts.length}
+}
 export function calculateTotals(lines:CartLine[],coupon?:Coupon){const subtotal=lines.reduce((s,l)=>s+l.price*l.qty,0);const raw=coupon?.active?(coupon.type==='percent'?Math.round(subtotal*coupon.value/100):coupon.value):0;const discount=Math.min(subtotal,raw);const tax=Math.round((subtotal-discount)*.1);return{subtotal,discount,tax,total:subtotal-discount+tax}}
 export function nextStatus(status:OrderStatus):OrderStatus {return status==='Held'?'Preparing':status==='Preparing'?'Ready':status==='Ready'?'Completed':status}
 export function validateVariations(groups:VariationGroup[]){const names=new Set<string>();for(const group of groups){const name=group.name.trim().toLowerCase();if(!name)return 'Variation group name is required.';if(names.has(name))return 'Variation group names must be unique.';names.add(name);if(!group.options.length)return 'Each variation group requires at least one option.';const options=new Set<string>();for(const option of group.options){const optionName=option.name.trim().toLowerCase();if(!optionName)return 'Variation option name is required.';if(options.has(optionName))return 'Variation option names must be unique within a group.';options.add(optionName);if(!Number.isFinite(option.priceDelta)||option.priceDelta<0)return 'Variation prices must be finite non-negative amounts.'}}return ''}

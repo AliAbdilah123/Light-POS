@@ -1,24 +1,45 @@
-import {useState} from 'react';import {Clock3,Mail} from 'lucide-react';import {useStore} from '../store';import {idr,localDate,type Note} from '../domain';import {Badge} from '../components/ui/badge';
+import {useState} from 'react';import {Clock3,Mail} from 'lucide-react';import {useStore} from '../store';import {BUSINESS_TZ,idr,localDate,localDateTime,localDay,type Note} from '../domain';import {Badge} from '../components/ui/badge';
 import {Button} from '../components/ui/button';
 import {Card} from '../components/ui/card';
 import {Input} from '../components/ui/input';
 import {NativeSelect as Select} from '../components/ui/native-select';import {FormActions,Metric,Modal,PageHead,SectionTitle,StatusRow} from '../components/molecules';import {StateBoundary} from '../components/DemoState';
 export function CashierDashboard(){
   const s=useStore();
-  const today=new Date().toISOString().slice(0,10);
-  const mine=s.data.orders.filter(o=>o.status==='Completed');
-  const cashOnly=s.data.orders.filter(o=>o.status==='Completed'&&o.payment==='Cash').reduce((sum,o)=>sum+o.total,0);
+  const[opening,setOpening]=useState('');
+  const[counted,setCounted]=useState('');
+  const[closing,setClosing]=useState(false);
+  const[error,setError]=useState('');
+  const today=localDay(new Date());
+  const mine=s.data.orders.filter(o=>o.cashierId===s.user.id&&o.status==='Completed');
+  const mineToday=mine.filter(o=>localDay(o.createdAt)===today);
+  const shiftOrders=s.activeShift?s.data.orders.filter(o=>o.shiftId===s.activeShift!.id):[];
+  const shiftCash=shiftOrders.filter(o=>o.status==='Completed'&&o.payment==='Cash');
+  const expected=(s.activeShift?.openingCash||0)+shiftCash.reduce((sum,o)=>sum+o.total,0);
   const open=s.data.orders.filter(o=>!['Completed','Voided'].includes(o.status)).length;
   const todaysShifts=s.data.shifts.filter(sh=>sh.date===today);
-  const shiftState=(sh:typeof todaysShifts[number])=>{const now=new Date().toTimeString().slice(0,5);return now<sh.start?'Upcoming':now>sh.end?'Completed':'Active'};
+  const shiftState=(sh:typeof todaysShifts[number])=>{const now=new Date().toLocaleTimeString('en-GB',{timeZone:BUSINESS_TZ,hour:'2-digit',minute:'2-digit'});return now<sh.start?'Upcoming':now>sh.end?'Completed':'Active'};
+  const startShift=()=>{const amount=Number(opening);if(!Number.isFinite(amount)||amount<0){setError('Enter the counted opening cash.');return}s.update(d=>({...d,shiftSessions:[...d.shiftSessions,{id:crypto.randomUUID(),businessId:s.business,cashierId:s.user.id,cashierName:s.user.name,openedAt:new Date().toISOString(),openingCash:amount}],audit:[`Shift opened with ${idr(amount)} opening cash`,...d.audit]}),'Shift opened');setOpening('');setError('')};
+  const closeShift=()=>{const amount=Number(counted);if(!Number.isFinite(amount)||amount<0){setError('Enter the counted closing cash.');return}if(!s.activeShift)return;s.update(d=>({...d,shiftSessions:d.shiftSessions.map(x=>x.id===s.activeShift!.id?{...x,closedAt:new Date().toISOString(),closingCash:amount,variance:Math.round(amount-expected)}:x),audit:[`Shift closed · counted ${idr(amount)} · variance ${idr(Math.round(amount-expected))}`,...d.audit]}),'Shift closed');setCounted('');setClosing(false);setError('')};
   return <><PageHead title={`Welcome, ${s.user.name}`} description="Your shift, service pulse, and team updates in one place."/><StateBoundary>
   <div className="metric-grid">
-    <Metric label="Orders served" value={String(mine.length)} delta={`${open} open right now`}/>
-    <Metric label="Cash in drawer" value={idr(cashOnly)} help="Completed cash payments"/>
+    <Metric label="Orders served by you" value={String(mineToday.length)} delta={`${mine.length} on record · ${open} open in business`}/>
+    <Metric label="Shift cash collected" value={idr(shiftCash.reduce((sum,o)=>sum+o.total,0))} help={s.activeShift?`Expected drawer ${idr(expected)}`:'No open shift'}/>
     <Metric label="Scheduled shifts" value={String(todaysShifts.length)} delta="Today in this business"/>
   </div>
   <div className="split"><Card><SectionTitle title="Active & upcoming shifts" meta={`${todaysShifts.length} today`}/>{todaysShifts.length?todaysShifts.map(sh=><StatusRow key={sh.id} title={`${sh.start}–${sh.end}`} meta={`${sh.location} · ${sh.staff}`} status={shiftState(sh)}/>):<p className="muted">No shifts scheduled for today.</p>}</Card>
-  <Card><SectionTitle title="Manager messages" meta={`${s.data.messages.filter(m=>!s.data.messagesRead.includes(m.id)).length} unread`}/>{s.data.messages.map(m=><button className={`message ${s.data.messagesRead.includes(m.id)?'read':''}`} key={m.id} onClick={()=>s.update(d=>({...d,messagesRead:[...new Set([...d.messagesRead,m.id])]}))}><Mail/><div><strong>{m.from}</strong><p>{m.text}</p><small>{m.time}</small></div></button>)}</Card></div></StateBoundary></>;
+  <Card><SectionTitle title="Manager messages" meta={`${s.data.messages.filter(m=>!s.data.messagesRead.includes(m.id)).length} unread`}/>{s.data.messages.map(m=><button className={`message ${s.data.messagesRead.includes(m.id)?'read':''}`} key={m.id} onClick={()=>s.update(d=>({...d,messagesRead:[...new Set([...d.messagesRead,m.id])]}))}><Mail/><div><strong>{m.from}</strong><p>{m.text}</p><small>{m.time}</small></div></button>)}</Card></div>
+  <Card><SectionTitle title="Cash drawer" meta={s.activeShift?`Opened ${localDateTime(s.activeShift.openedAt)}`:'No open shift'}/>
+    {error&&<p className="alert bad" role="alert">{error}</p>}
+    {s.activeShift?<>
+      <div className="metric-grid shift-metrics">
+        <Metric label="Opening cash" value={idr(s.activeShift.openingCash)}/>
+        <Metric label="Cash sales" value={idr(shiftCash.reduce((sum,o)=>sum+o.total,0))} delta={`${shiftCash.length} cash orders in this shift`}/>
+        <Metric label="Expected in drawer" value={idr(expected)}/>
+      </div>
+      {!closing?<div className="form-actions"><Button variant="primary" onClick={()=>setClosing(true)}>Close shift</Button></div>:<form onSubmit={e=>{e.preventDefault();closeShift()}}><Input label="Counted closing cash" type="number" min="0" inputMode="numeric" value={counted} onChange={e=>{setCounted(e.target.value);setError('')}}/><div className="formula"><span>Variance</span><strong>{idr(Math.round(Number(counted||0)-expected))}</strong></div><div className="form-actions"><Button type="button" onClick={()=>setClosing(false)}>Keep shift open</Button><Button variant="primary" type="submit">Confirm close</Button></div></form>}
+    </>:<form onSubmit={e=>{e.preventDefault();startShift()}}><p className="muted">Open a shift before service so cash sales reconcile to a drawer. Your name is recorded on every order you take.</p><Input label="Opening cash counted" type="number" min="0" inputMode="numeric" value={opening} onChange={e=>{setOpening(e.target.value);setError('')}}/><Button variant="primary" type="submit">Open shift</Button></form>}
+  </Card>
+  </StateBoundary></>;
 }
 
 export function NotesPage(){
