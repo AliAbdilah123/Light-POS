@@ -24,7 +24,7 @@ export function PageHead({
         <h1>{title}</h1>
         <p>{description}</p>
       </div>
-      {action}
+      {action && <div className="page-head-actions">{action}</div>}
     </header>
   );
 }
@@ -34,14 +34,17 @@ export function Metric({
   value,
   delta,
   help,
+  icon,
 }: {
   label: string;
   value: string;
   delta?: string;
   help?: string;
+  icon?: ReactNode;
 }) {
   return (
     <Card className="metric">
+      {icon && <span className="metric-icon">{icon}</span>}
       <span>{label}</span>
       <strong>{value}</strong>
       {delta && <small>{delta}</small>}
@@ -70,6 +73,31 @@ export function SectionTitle({
   );
 }
 
+export function PageSection({
+  title,
+  meta,
+  action,
+  children,
+  className,
+}: {
+  title: string;
+  meta?: string;
+  action?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <Card className={className}>
+      <SectionTitle title={title} meta={meta} action={action} />
+      {children}
+    </Card>
+  );
+}
+
+export function Toolbar({ children }: { children: ReactNode }) {
+  return <div className="toolbar">{children}</div>;
+}
+
 export function StatusRow({
   title,
   meta,
@@ -88,7 +116,8 @@ export function StatusRow({
     status === 'Available' ||
     status === 'Approved' ||
     status === 'Active' ||
-    status === 'Enabled'
+    status === 'Enabled' ||
+    status === 'Received'
       ? 'good'
       : status === 'Voided' ||
         status === 'Declined' ||

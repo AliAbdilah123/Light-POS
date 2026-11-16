@@ -2,9 +2,11 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   BarChart3,
   BookCheck,
+  Building2,
   CalendarDays,
   ClipboardList,
   Coffee,
+  FlaskConical,
   LayoutDashboard,
   LogOut,
   Mail,
@@ -12,39 +14,44 @@ import {
   Moon,
   PackageOpen,
   ReceiptText,
-  ShoppingBag,
+  Settings2,
   Sun,
+  Table2,
   Target,
+  TicketPercent,
   Users,
   WalletCards,
   X,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useStore } from '../store';
+import { useStore, type Session, type Tenant } from '../store';
 import { Button } from './ui/button';
-
-import { dashboardPath, type DemoMode } from '../domain';
+import { dashboardPath, type DemoMode, type Role } from '../domain';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
 
 type NavEntry = string | readonly [string, string, LucideIcon];
-const nav: Record<'cashier' | 'manager' | 'admin' | 'kitchen' | 'display', readonly NavEntry[]> = {
+type NavRole = 'cashier' | 'manager' | 'admin' | 'kitchen' | 'display';
+
+const nav: Record<NavRole, readonly NavEntry[]> = {
   cashier: [
+    'Today',
     ['Dashboard', '/cashier/dashboard', LayoutDashboard],
     'Service',
     ['New order', '/cashier/order', Coffee],
     ['Orders', '/orders', ReceiptText],
-    ['Seats', '/seats', Users],
+    ['Seats', '/seats', Table2],
     'My work',
     ['Shift & requests', '/cashier/people', CalendarDays],
     ['Notes', '/notes', ClipboardList],
   ],
   manager: [
+    'Overview',
     ['Overview', '/manager/dashboard', LayoutDashboard],
     ['Revenue', '/manager/revenue', BarChart3],
     'Service',
     ['Orders', '/orders', ReceiptText],
-    ['Seats', '/seats', Users],
+    ['Seats', '/seats', Table2],
     ['Leave approvals', '/manager/requests', CalendarDays],
     'Operations',
     ['Expenses', '/manager/expenses', WalletCards],
@@ -53,13 +60,14 @@ const nav: Record<'cashier' | 'manager' | 'admin' | 'kitchen' | 'display', reado
     ['SOP & notes', '/manager/sop', BookCheck],
   ],
   admin: [
+    'Overview',
     ['Portfolio', '/admin/dashboard', LayoutDashboard],
     ['Revenue', '/admin/revenue', BarChart3],
     ['Insights', '/admin/insights', BarChart3],
     'Service',
     ['New order', '/admin/order', Coffee],
     ['Orders', '/orders', ReceiptText],
-    ['Seats', '/seats', Users],
+    ['Seats', '/seats', Table2],
     ['Shift & requests', '/admin/people', CalendarDays],
     ['Leave approvals', '/admin/requests', CalendarDays],
     ['Notes', '/admin/notes', ClipboardList],
@@ -72,18 +80,100 @@ const nav: Record<'cashier' | 'manager' | 'admin' | 'kitchen' | 'display', reado
     ['Targets & schedule', '/admin/operations', Target],
     'Catalogue',
     ['Menu catalog', '/admin/menu', Coffee],
-    ['Menu lab', '/admin/menu-lab', Target],
-    ['Experiments', '/admin/experiments', Target],
+    ['Menu lab', '/admin/menu-lab', FlaskConical],
+    ['Experiments', '/admin/experiments', FlaskConical],
     ['Order types', '/admin/order-types', ClipboardList],
-    ['Tables', '/admin/tables', Users],
-    ['Coupons', '/admin/coupons', ShoppingBag],
+    ['Tables', '/admin/tables', Table2],
+    ['Coupons', '/admin/coupons', TicketPercent],
     'Administration',
     ['SOP templates', '/admin/sop', BookCheck],
     ['Payment QR', '/admin/payment-qr', WalletCards],
-    ['Users & roles', '/admin/users-access', Users],
+    ['Users & roles', '/admin/users-access', Settings2],
   ],
   kitchen: [['Kitchen', '/kitchen/dashboard', ClipboardList]],
   display: [['Menu display', '/display/dashboard', Coffee]],
+};
+
+const pageTitles: Record<string, string> = {
+  '/cashier/dashboard': 'Dashboard',
+  '/cashier/order': 'New order',
+  '/cashier/people': 'Shift & requests',
+  '/orders': 'Orders',
+  '/seats': 'Seats',
+  '/notes': 'Notes',
+  '/manager/dashboard': 'Overview',
+  '/manager/revenue': 'Revenue',
+  '/manager/expenses': 'Expenses',
+  '/manager/inventory': 'Inventory & recipes',
+  '/manager/profitability': 'Profitability',
+  '/manager/sop': 'SOP & notes',
+  '/manager/requests': 'Leave approvals',
+  '/admin/dashboard': 'Portfolio',
+  '/admin/order': 'New order',
+  '/admin/people': 'Shift & requests',
+  '/admin/requests': 'Leave approvals',
+  '/admin/notes': 'Notes',
+  '/admin/revenue': 'Revenue',
+  '/admin/expenses': 'Expenses',
+  '/admin/inventory': 'Inventory & recipes',
+  '/admin/profitability': 'Profitability',
+  '/admin/run-sop': 'Run SOP & notes',
+  '/admin/insights': 'Insights',
+  '/admin/menu': 'Menu catalog',
+  '/admin/menu-lab': 'Menu lab',
+  '/admin/experiments': 'Experiments',
+  '/admin/coupons': 'Coupons',
+  '/admin/order-types': 'Order types',
+  '/admin/tables': 'Tables',
+  '/admin/operations': 'Targets & schedule',
+  '/admin/staff': 'Staff & shifts',
+  '/admin/sop': 'SOP templates',
+  '/admin/tenants': 'Tenants',
+  '/admin/users-access': 'Users & roles',
+  '/admin/payment-qr': 'Payment QR',
+  '/kitchen/dashboard': 'Kitchen',
+  '/display/dashboard': 'Menu display',
+};
+
+const pageGroups: Record<string, string> = {
+  '/admin/dashboard': 'Overview',
+  '/admin/revenue': 'Overview',
+  '/admin/insights': 'Overview',
+  '/admin/order': 'Service',
+  '/admin/people': 'Service',
+  '/admin/requests': 'Service',
+  '/admin/notes': 'Service',
+  '/admin/run-sop': 'Service',
+  '/admin/expenses': 'Operations',
+  '/admin/inventory': 'Operations',
+  '/admin/profitability': 'Operations',
+  '/admin/staff': 'Operations',
+  '/admin/operations': 'Operations',
+  '/admin/menu': 'Catalogue',
+  '/admin/menu-lab': 'Catalogue',
+  '/admin/experiments': 'Catalogue',
+  '/admin/order-types': 'Catalogue',
+  '/admin/tables': 'Catalogue',
+  '/admin/coupons': 'Catalogue',
+  '/admin/sop': 'Administration',
+  '/admin/payment-qr': 'Administration',
+  '/admin/users-access': 'Administration',
+  '/admin/tenants': 'Administration',
+  '/manager/dashboard': 'Overview',
+  '/manager/revenue': 'Overview',
+  '/manager/requests': 'Service',
+  '/manager/expenses': 'Operations',
+  '/manager/inventory': 'Operations',
+  '/manager/profitability': 'Operations',
+  '/manager/sop': 'Operations',
+  '/cashier/dashboard': 'Today',
+  '/cashier/order': 'Service',
+  '/cashier/people': 'My work',
+  '/orders': 'Service',
+  '/seats': 'Service',
+  '/notes': 'My work',
+  '/kitchen/dashboard': 'Kitchen',
+  '/display/dashboard': 'Display',
 };
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -95,7 +185,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     tenants,
     theme,
     toggleTheme,
-
     data,
     update,
     logout,
@@ -107,8 +196,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const close = useRef<HTMLButtonElement>(null);
   const loc = useLocation();
   const global = role === 'superadmin' && user.businessIds.includes('*');
-  const navRole = role === 'superadmin' ? 'admin' : role;
+  const navRole: NavRole = role === 'superadmin' ? 'admin' : role;
   const allowed = tenants.filter((b) => global || user.businessIds.includes(b.id));
+  const pageTitle = pageTitles[loc.pathname] || (loc.pathname.startsWith('/orders/') ? 'Order detail' : 'Workspace');
+  const group = pageGroups[loc.pathname] || 'Workspace';
 
   const isRead = (message: (typeof data.messages)[number]) =>
     data.messagesRead.includes(message.id) ||
@@ -135,7 +226,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!window.matchMedia) return;
-    const wide = window.matchMedia('(min-width: 801px)');
+    const wide = window.matchMedia('(min-width: 901px)');
     const reset = (event: MediaQueryListEvent) => {
       if (event.matches) setOpen(false);
     };
@@ -144,7 +235,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (role === 'display') {
-    return <main id="main" className="display-kiosk" tabIndex={-1}>{children}</main>;
+    return (
+      <main id="main" className="display-kiosk" tabIndex={-1}>
+        {children}
+      </main>
+    );
   }
 
   return (
@@ -163,13 +258,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           {open ? <X /> : <MenuIcon />}
         </button>
-        <NavLink className="brand" to={dashboardPath(role)}>
+        <NavLink className="topbar-brand" to={dashboardPath(role)} aria-label="Light POS home">
           <span>L</span>
-          <div>
-            <strong>Light POS</strong>
-            <small>Sample POS workspace</small>
-          </div>
         </NavLink>
+        <div className="topbar-context">
+          <span className="crumb">
+            <Building2 aria-hidden="true" />
+            {group}
+          </span>
+          <span className="divider" aria-hidden="true" />
+          <strong>{pageTitle}</strong>
+        </div>
         <div className="top-context">
           <button
             ref={trigger}
@@ -264,11 +363,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="left" aria-describedby={undefined} className="sidebar mobile-sidebar">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
-          <Navigation idPrefix="mobile" role={role} navRole={navRole} global={global} pathname={loc.pathname} logout={logout} user={user} business={business} setBusiness={setBusiness} tenants={allowed} onNavigate={() => setOpen(false)} />
+          <Navigation
+            idPrefix="mobile"
+            role={role}
+            navRole={navRole}
+            global={global}
+            pathname={loc.pathname}
+            logout={logout}
+            user={user}
+            business={business}
+            setBusiness={setBusiness}
+            tenants={allowed}
+            onNavigate={() => setOpen(false)}
+          />
         </SheetContent>
       </Sheet>
       <aside id="app-navigation" className="sidebar desktop-sidebar">
-        <Navigation idPrefix="desktop" role={role} navRole={navRole} global={global} pathname={loc.pathname} logout={logout} user={user} business={business} setBusiness={setBusiness} tenants={allowed} />
+        <Navigation
+          idPrefix="desktop"
+          role={role}
+          navRole={navRole}
+          global={global}
+          pathname={loc.pathname}
+          logout={logout}
+          user={user}
+          business={business}
+          setBusiness={setBusiness}
+          tenants={allowed}
+        />
       </aside>
       <main id="main" tabIndex={-1}>
         {children}
@@ -277,38 +399,84 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Navigation({ idPrefix, role, navRole, global, pathname, logout, user, business, setBusiness, tenants, onNavigate }: {
+function Navigation({
+  idPrefix,
+  role,
+  navRole,
+  global,
+  pathname,
+  logout,
+  user,
+  business,
+  setBusiness,
+  tenants,
+  onNavigate,
+}: {
   idPrefix: string;
-  role: ReturnType<typeof useStore>['role'];
-  navRole: keyof typeof nav;
+  role: Role;
+  navRole: NavRole;
   global: boolean;
   pathname: string;
   logout: () => Promise<void>;
-  user: ReturnType<typeof useStore>['user'];
+  user: Session;
   business: string;
   setBusiness: (business: string) => void;
-  tenants: ReturnType<typeof useStore>['tenants'];
+  tenants: Tenant[];
   onNavigate?: () => void;
 }) {
   const { demo, setDemo } = useStore();
   const entries: readonly NavEntry[] = nav[navRole];
-  const extras: readonly NavEntry[] = global ? [['Tenants', '/admin/tenants', Users] as const] : [];
+  const extras: readonly NavEntry[] = global
+    ? [['Tenants', '/admin/tenants', Building2] as const]
+    : [];
   const items: readonly NavEntry[] = [...entries, ...extras];
   return (
     <>
+      <div className="sidebar-brand">
+        <NavLink className="brand" to={dashboardPath(role)} onClick={onNavigate}>
+          <span>L</span>
+          <div>
+            <strong>Light POS</strong>
+            <small>Sample workspace</small>
+          </div>
+        </NavLink>
+      </div>
       <section className="sidebar-context" aria-label="Account and tenant">
         <div className="sidebar-user">
           <span aria-hidden="true">{user.name.charAt(0).toUpperCase()}</span>
-          <div title={`${user.name} · @${user.username} · ${role}`}><strong>{user.name}</strong><small>@{user.username} · {role}</small></div>
+          <div title={`${user.name} · @${user.username} · ${role}`}>
+            <strong>{user.name}</strong>
+            <small>@{user.username} · {role}</small>
+          </div>
         </div>
-        <TenantSelect id={`${idPrefix}-business`} global={global} value={business} tenants={tenants} onChange={setBusiness} />
+        <TenantSelect
+          id={`${idPrefix}-business`}
+          global={global}
+          value={business}
+          tenants={tenants}
+          onChange={setBusiness}
+        />
       </section>
       <nav aria-label={`${role} navigation`}>
         {items.map((entry) => {
-          if (typeof entry === 'string') return <span className="nav-group" key={entry}>{entry}</span>;
+          if (typeof entry === 'string')
+            return (
+              <span className="nav-group" key={entry}>
+                {entry}
+              </span>
+            );
           const [name, to, Icon] = entry;
           return (
-            <NavLink key={to} to={to} onClick={onNavigate} className={({ isActive }) => isActive || (to === '/orders' && pathname.startsWith('/orders')) ? 'active' : ''}>
+            <NavLink
+              key={to}
+              to={to}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                isActive || (to === '/orders' && pathname.startsWith('/orders'))
+                  ? 'active'
+                  : ''
+              }
+            >
               <Icon aria-hidden="true" />
               <span>{name}</span>
             </NavLink>
@@ -316,38 +484,105 @@ function Navigation({ idPrefix, role, navRole, global, pathname, logout, user, b
         })}
       </nav>
       <div className="sidebar-foot">
-        <label className="demo-select"><span>Demo state</span><select aria-label="Demo data state" value={demo} onChange={(event) => setDemo(event.target.value as DemoMode)}><option value="ready">Ready</option><option value="loading">Loading</option><option value="empty">Empty</option><option value="error">Error</option></select></label>
+        <label className="demo-select">
+          <span>Demo state</span>
+          <select
+            aria-label="Demo data state"
+            value={demo}
+            onChange={(event) => setDemo(event.target.value as DemoMode)}
+          >
+            <option value="ready">Ready</option>
+            <option value="loading">Loading</option>
+            <option value="empty">Empty</option>
+            <option value="error">Error</option>
+          </select>
+        </label>
         <Button className="sidebar-logout" onClick={() => void logout()}>
           <LogOut aria-hidden="true" />
           Sign out
         </Button>
-        <span className="live-dot" /> Server session · synced
-        <br />
+        <span>
+          <span className="live-dot" /> Server session · synced
+        </span>
       </div>
     </>
   );
 }
 
-function TenantSelect({ id, global, value, tenants, onChange }: {
+function TenantSelect({
+  id,
+  global,
+  value,
+  tenants,
+  onChange,
+}: {
   id: string;
   global: boolean;
   value: string;
-  tenants: ReturnType<typeof useStore>['tenants'];
+  tenants: Tenant[];
   onChange: (business: string) => void;
 }) {
-  const options = [...(global ? [{ id: 'all', name: 'All businesses' }] : []), ...tenants];
+  const options = [
+    ...(global ? [{ id: 'all', name: 'All businesses' }] : []),
+    ...tenants,
+  ];
   const selected = options.find((option) => option.id === value)?.name || '';
   const [query, setQuery] = useState(selected);
   const [open, setOpen] = useState(false);
-  const visible = options.filter((option) => option.name.toLowerCase().includes(query.toLowerCase()));
+  const visible = options.filter((option) =>
+    option.name.toLowerCase().includes(query.toLowerCase())
+  );
   useEffect(() => setQuery(selected), [selected]);
-  const choose = (option: (typeof options)[number]) => { onChange(option.id); setQuery(option.name); setOpen(false); };
-  return <div className="field tenant-combobox">
-    <label htmlFor={id}>Business</label>
-    <input id={id} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={`${id}-options`} value={query} onFocus={() => { setQuery(''); setOpen(true); }} onChange={(event) => { setQuery(event.target.value); setOpen(true); }} onKeyDown={(event) => { if (event.key === 'Escape') { setQuery(selected); setOpen(false); } else if (event.key === 'Enter' && visible[0]) { event.preventDefault(); choose(visible[0]); } }} />
-    {open && <div id={`${id}-options`} role="listbox" aria-label="Businesses">
-      {visible.map((option) => <button type="button" role="option" aria-selected={option.id === value} key={option.id} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(option)}>{option.name}</button>)}
-      {!visible.length && <small>No tenants found</small>}
-    </div>}
-  </div>;
+  const choose = (option: (typeof options)[number]) => {
+    onChange(option.id);
+    setQuery(option.name);
+    setOpen(false);
+  };
+  return (
+    <div className="field tenant-combobox">
+      <label htmlFor={id}>Business</label>
+      <input
+        id={id}
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={open}
+        aria-controls={`${id}-options`}
+        value={query}
+        onFocus={() => {
+          setQuery('');
+          setOpen(true);
+        }}
+        onChange={(event) => {
+          setQuery(event.target.value);
+          setOpen(true);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            setQuery(selected);
+            setOpen(false);
+          } else if (event.key === 'Enter' && visible[0]) {
+            event.preventDefault();
+            choose(visible[0]);
+          }
+        }}
+      />
+      {open && (
+        <div id={`${id}-options`} role="listbox" aria-label="Businesses">
+          {visible.map((option) => (
+            <button
+              type="button"
+              role="option"
+              aria-selected={option.id === value}
+              key={option.id}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => choose(option)}
+            >
+              {option.name}
+            </button>
+          ))}
+          {!visible.length && <small>No tenants found</small>}
+        </div>
+      )}
+    </div>
+  );
 }

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-15
+
+Whole-UI refactor (branch `refactor/ui-overhaul`). Same React/Vite/Tailwind/Radix stack; no route, capability, or data-contract changes.
+
+- New design system in `src/styles.css`: calmer dark/light palettes, 16px card radius, 42px controls, consistent spacing, sticky topbar, full-height sidebar, and responsive breakpoints at 1280/1100/900/600px.
+- Shell: brand moved into the sidebar, topbar now shows the current section and page, navigation grouped with icons and a scrollable rail, tenant switcher and account card consolidated, and a compact mobile drawer with a topbar brand.
+- Shared primitives: `PageHead` actions, `Metric` icons, `SectionTitle`, `StatusRow`, `Modal`, `FormActions`, plus new `PageSection`/`Toolbar`; `DataTable` gained a sticky header, empty state, and live result count.
+- Pages reordered around the operator's task: dashboards lead with metrics and quick actions, order entry keeps the category rail/product canvas/ledger with a clearer table picker and cart, orders and seats lead with status summaries, and admin pages use consistent toolbars and card grids.
+- Fixed the aggregate superadmin view of Targets & opening hours: it now asks for a single business instead of rendering prefixed schedule keys.
+- Tests: 115 frontend tests pass; typecheck and production build pass.
+
 ## 2026-11-14
 
 UX and feature audit fixes (branch `fix/ux-audit-critical-high`). Full report: `docs/ux-audit-2026-11-14.html`; before/after walkthrough: `docs/ux-before-after.mp4`.
