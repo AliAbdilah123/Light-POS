@@ -8,3 +8,7 @@ sqlite.db-shm
 sqlite.db-wal
 
 sqlite.db.backup-*
+
+# Tool-generated outputs: demo videos, audit reports, screenshots.
+.artifacts/
+
