@@ -20,7 +20,7 @@ function Login({onLogin}:{onLogin:(user:Session)=>void}){const[error,setError]=u
 
 export function StoreProvider({children}:{children:ReactNode}){
   const[session,setSession]=useState<Session|null>(null),[booting,setBooting]=useState(true),[data,setData]=useState<Data|null>(null),[syncError,setSyncError]=useState(''),[tenants,setTenants]=useState<Tenant[]>([]);
-  const[business,setBusinessState]=useState('harbor'),[theme,setTheme]=useState<'light'|'dark'>(()=>(localStorage.getItem('pos-theme') as 'light'|'dark')||'dark'),[demo,setDemo]=useState<DemoMode>('ready');
+  const[business,setBusinessState]=useState('harbor'),[theme,setTheme]=useState<'light'|'dark'>(()=>(localStorage.getItem('pos-theme') as 'light'|'dark')||'light'),[demo,setDemo]=useState<DemoMode>('ready');
   const[cart,dispatch]=useReducer(cartReducer,[]),[service,setService]=useState<ServiceMode>('Dine In'),[tableIds,setTableIds]=useState<string[]>([]),[coupon,setCoupon]=useState<Coupon>();
   const revision=useRef(0),queue=useRef(Promise.resolve()),generation=useRef(0),sessionRef=useRef<Session|null>(null),businessRef=useRef(business);
   useEffect(()=>{document.documentElement.dataset.theme=theme;localStorage.setItem('pos-theme',theme)},[theme]);

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-16
+
+Membership-app visual experiment (branch `experiment/membership-style`). Same markup, routes, and behavior; only the theme layer and component styling change.
+
+- Palette now mirrors `membership-app`: cool near-white surfaces (`oklch` tokens), indigo/violet primary, indigo-tinted hover/active states, and a matching dark theme. Light is the default theme; the toggle still persists to `pos-theme`.
+- Radius/controls retuned to the reference: 12px cards, 8px buttons and inputs, 38px control height, subtle `shadow-sm`, 6px pill-free badges, and 2px focus rings.
+- Shell restyled: gradient indigo→violet brand marks, white sidebar with rounded nav rows and tinted active state, ghost topbar icon buttons, and indigo auth page backdrop.
+- Added a Tailwind `@theme inline` bridge so the shared `components/ui/*` primitives resolve `bg-primary`, `bg-card`, `bg-muted`, `border-input`, `ring-ring`, etc. from the same tokens as the hand-written CSS.
+- Tables, modals, product tiles, order ledger, payment options, seats, charts, and empty states rethemed to the same neutral/indigo language.
+- Verified in the browser in light and dark at desktop and 390px; 115 frontend tests, lint, typecheck, and production build pass.
+
 ## 2026-11-15
 
 Whole-UI refactor (branch `refactor/ui-overhaul`). Same React/Vite/Tailwind/Radix stack; no route, capability, or data-contract changes.
