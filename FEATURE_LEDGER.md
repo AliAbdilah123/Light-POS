@@ -78,7 +78,7 @@ Completion status: **all rows verified** on 2 September 2026. All identities, fi
 
 ## UX audit corrections — 14 November 2026
 
-Audit report: `docs/ux-audit-2026-11-14.html`. Before/after walkthrough: `docs/ux-before-after.mp4`.
+Audit report: `.artifacts/docs/ux-audit-2026-11-14.html`. Before/after walkthrough: `.artifacts/docs/ux-before-after.mp4`.
 
 Rows in the table above that did not survive a live walkthrough, and what changed:
 
@@ -99,7 +99,7 @@ profiles on startup, so existing databases pick up newly added capabilities with
 
 ## Incomplete-flow corrections — 15 November 2026
 
-Audit: `docs/incomplete-flow-audit-2026-11-14.html` · demo: `docs/incomplete-flow-fixes-demo.mp4` · branch: `fix/incomplete-flows`.
+Audit: `.artifacts/docs/incomplete-flow-audit-2026-11-14.html` · demo: `.artifacts/docs/incomplete-flow-fixes-demo.mp4` · branch: `fix/incomplete-flows`.
 
 | Previous claim / gap | Resolution |
 | --- | --- |

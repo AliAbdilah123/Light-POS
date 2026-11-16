@@ -24,7 +24,7 @@ Whole-UI refactor (branch `refactor/ui-overhaul`). Same React/Vite/Tailwind/Radi
 
 ## 2026-11-14
 
-UX and feature audit fixes (branch `fix/ux-audit-critical-high`). Full report: `docs/ux-audit-2026-11-14.html`; before/after walkthrough: `docs/ux-before-after.mp4`.
+UX and feature audit fixes (branch `fix/ux-audit-critical-high`). Full report: `.artifacts/docs/ux-audit-2026-11-14.html`; before/after walkthrough: `.artifacts/docs/ux-before-after.mp4` (gitignored local artifacts).
 
 - Fixed duplicate state writes: `update()` no longer performs its `fetch` inside the `setData` updater, so React StrictMode no longer double-invokes it. Every mutation now sends exactly one `PUT`, and a rejected write keeps its error visible instead of being cleared by the recovery reload.
 - Order entry: required variation groups default to their first option and a missing group names itself; the table field is marked required with an inline reason when it blocks Hold/Review & pay; the native multi-select is replaced by a table chip grid; the ledger gains a clear-order action.
