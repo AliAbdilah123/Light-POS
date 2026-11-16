@@ -5,6 +5,7 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Metric, PageHead, SectionTitle } from '../components/molecules';
 import { useStore } from '../store';
+import { printOrder, printReason } from '../services/printing';
 import type { MenuItem, Order } from '../domain';
 
 const age = (createdAt: string) => {
@@ -24,8 +25,9 @@ const tables = (order: Order, names: Map<string, string>) =>
   'No table';
 
 export function KitchenPage() {
-  const { data, sessionMenus, update, demo } = useStore();
+  const { data, sessionMenus, update, demo, business, user } = useStore();
   const [selected, setSelected] = useState<string>();
+  const [printNotice, setPrintNotice] = useState('');
   const orders = (demo === 'empty'
     ? []
     : data.orders.filter((o) => o.status === 'Preparing')
@@ -70,6 +72,28 @@ export function KitchenPage() {
       ),
     }));
     setSelected(undefined);
+  };
+  const printTicket = async () => {
+    if (!order) return;
+    setPrintNotice('Printing…');
+    try {
+      const result = await printOrder(
+        business,
+        order.id,
+        'kitchen',
+        false,
+        user.csrfToken
+      );
+      setPrintNotice(
+        result.printed
+          ? `Ticket sent to ${result.printerName}.`
+          : printReason(result.reason)
+      );
+    } catch (reason) {
+      setPrintNotice(
+        reason instanceof Error ? reason.message : 'Print failed.'
+      );
+    }
   };
   if (demo === 'loading')
     return (
@@ -143,7 +167,10 @@ export function KitchenPage() {
                 key={o.id}
                 className="kitchen-order"
                 aria-label={`Open order ${o.id}`}
-                onClick={() => setSelected(o.id)}
+                onClick={() => {
+                  setPrintNotice('');
+                  setSelected(o.id);
+                }}
               >
                 <span>
                   <strong>{o.id}</strong>
@@ -249,9 +276,17 @@ export function KitchenPage() {
                 </li>
               ))}
             </ul>
-            <Button variant="primary" onClick={ready}>
-              Mark Ready
-            </Button>
+            {printNotice && (
+              <p className="hint-text" role="status">
+                {printNotice}
+              </p>
+            )}
+            <div className="form-actions">
+              <Button onClick={() => void printTicket()}>Print ticket</Button>
+              <Button variant="primary" onClick={ready}>
+                Mark Ready
+              </Button>
+            </div>
           </div>
         </div>
       )}

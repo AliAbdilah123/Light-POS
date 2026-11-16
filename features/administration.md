@@ -100,3 +100,21 @@ The backend requires `HERMES_URL` and `HERMES_SECRET`; neither is exposed to the
 ## 12. Cross-role operational tools
 
 Admin navigation also exposes New order, Orders, Seats, Shift & requests, Notes, Revenue, Expenses, Inventory & recipes, Profitability, and Run SOP & notes. Verify these using the cashier and manager guides, then verify tenant scope after every business switch.
+
+## 13. Thermal printers and automatic printing
+
+1. Sign in as a tenant admin, select one business, and open **Printers & printing**. A superadmin must select a single tenant before configuring hardware.
+2. Select **Add printer** and enter a unique name, the printer host or IP, the TCP port (9100 is typical for network ESC/POS printers), paper width (58 mm or 80 mm), and whether it is enabled.
+3. Use **Test print** on the printer row and confirm the printer emits a test ticket. **Remove** clears that printer from receipt and kitchen routing.
+4. Under **Print routing**, assign a separate receipt printer and kitchen printer. The same printer may serve both jobs.
+5. Keep **Auto-print receipt after payment** on (the default) and choose whether **Auto-print kitchen ticket when an order is sent to the kitchen** is on (the default is off). Select **Save print routing**.
+6. Complete a cash or QRIS sale. With receipt auto-print on and a printer assigned, the receipt prints without another action. The payment-complete dialog also offers **Print receipt** and **Print kitchen order**.
+7. Hold an order, open it under **Orders**, and select **Mark Preparing**. With kitchen auto-print on, the kitchen ticket prints automatically. The order detail also offers **Print receipt** and **Print kitchen ticket**.
+8. Open a preparing order on the **Kitchen** dashboard and select **Print ticket** to reprint the kitchen copy.
+9. Disable or remove the assigned printer. Confirm automatic jobs are skipped and manual print actions explain that no enabled printer is available.
+10. Verify tenant isolation: printers and routing configured for Harbor do not appear for Garden, and a cashier or manager cannot add, edit, or remove printers.
+11. Complete a sale, then select **Save receipt as JPG** in the payment-complete dialog. Confirm a `receipt-<order>.jpg` file downloads and contains the tenant, order, line details, totals, payment, and change. The same action is available in the Orders detail.
+12. Use the **Receipt image demo** card on **Printers & printing** to preview a sample receipt built from the current tenant's menu and select **Download sample JPG**. This verifies the image layout without taking a sale.
+
+Printing uses direct TCP connections to ESC/POS thermal printers from the POS server, so the server must be able to reach the printer's LAN address. Printer host, port, paper width, routing, and automatic print choices are stored per tenant. Receipts include item lines, modifiers, notes, totals, payment, and change; kitchen tickets include the order number, service/table context, quantities, variations, and notes without prices. The JPG receipt is rendered in the browser at 80 mm width and downloaded locally; it does not require a configured printer.
+

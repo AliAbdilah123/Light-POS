@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-16 — Thermal receipt and kitchen printing
+
+- Added tenant-scoped network thermal printer management at **Printers & printing** (`/admin/printers`): unique name, host/IP, TCP port, 58/80 mm paper width, enabled state, test tickets, edit, and removal. Tenant admins manage their own tenant; superadmins must select one business.
+- Added per-tenant print routing so receipts and kitchen tickets can use the same or different printers. Automatic receipt printing defaults on; automatic kitchen ticket printing defaults off. Both are persisted server-side and auditable.
+- Added ESC/POS rendering and direct TCP delivery from the server, with 32-column (58 mm) and 48-column (80 mm) layouts. Receipts include lines, variations, notes, totals, payment, and change; kitchen tickets omit prices and emphasise the order number.
+- Checkout auto-prints the receipt and, when enabled, the kitchen ticket after the order is saved. Held → Preparing auto-prints the kitchen ticket when enabled. Manual **Print receipt**, **Print kitchen order**, and **Print ticket** actions were added to the payment dialog, Orders detail, and Kitchen detail.
+- Added **Save receipt as JPG** to the payment-complete dialog and Orders detail. The browser renders an 80 mm receipt image with tenant, order, line details, totals, payment, and change, then downloads `receipt-<order>.jpg`.
+- Added a **Receipt image demo** card to **Printers & printing** with a live sample receipt preview built from the current tenant's menu and a **Download sample JPG** action.
+- Added backend coverage for printer CRUD, tenant isolation, routing validation, test prints, automatic print defaults, disabled/missing printers, manual reprints, and the rendered ESC/POS payloads. Frontend coverage exercises printer setup, routing toggles, test prints, automatic checkout prints, manual copies, receipt row content, and the JPG actions.
+- Verified: 25 backend tests, 118 frontend tests, lint, typecheck, and production build pass. The sample JPG was downloaded in a real browser and inspected as a valid 1152×1074 JPEG.
+
 ## 2026-11-16
 
 Membership-app visual experiment (branch `experiment/membership-style`). Same markup, routes, and behavior; only the theme layer and component styling change.

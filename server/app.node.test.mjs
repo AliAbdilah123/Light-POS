@@ -7,9 +7,9 @@ import {createServer} from 'node:http';
 import {createApp,openDatabase} from './app.mjs';
 import {resetSeedDatabase} from './reset-seed.mjs';
 
-let app,server,base,dbPath;
+let app,server,base,dbPath,printJobs=[];
 const originalNodeEnv=process.env.NODE_ENV,originalSeedPassword=process.env.POS_SEED_PASSWORD;
-beforeEach(async()=>{dbPath=join(mkdtempSync(join(tmpdir(),'light-pos-')),'test.db');app=await createApp({dbPath,secureCookies:false});server=createServer(app.handler);await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));base=`http://127.0.0.1:${server.address().port}`});
+beforeEach(async()=>{dbPath=join(mkdtempSync(join(tmpdir(),'light-pos-')),'test.db');printJobs=[];app=await createApp({dbPath,secureCookies:false,printerTransport:async(printer,bytes)=>{printJobs.push({printer,bytes})}});server=createServer(app.handler);await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));base=`http://127.0.0.1:${server.address().port}`});
 afterEach(async()=>{delete process.env.POS_RECEIPT_PARSER_URL;if(originalSeedPassword===undefined)delete process.env.POS_SEED_PASSWORD;else process.env.POS_SEED_PASSWORD=originalSeedPassword;if(originalNodeEnv===undefined)delete process.env.NODE_ENV;else process.env.NODE_ENV=originalNodeEnv;await new Promise(resolve=>server.close(resolve));app.close()});
 const request=(path,options={})=>fetch(`${base}${path}`,options);
 async function login(username='cashier.harbor',password='light-pos-demo'){const response=await request('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username,password})}),body=await response.json();assert.equal(response.status,200,JSON.stringify(body));return{cookie:response.headers.get('set-cookie').split(';')[0],csrf:body.user.csrfToken,user:body.user}}
@@ -77,6 +77,65 @@ test('stores one validated tenant payment QR with scoped reads, admin-only mutat
   response=await request('/api/payment-qr?business=harbor',{method:'DELETE',headers:{cookie:admin.cookie,'x-csrf-token':admin.csrf}});assert.equal(response.status,200);assert.deepEqual(await response.json(),{configured:false});
   assert.deepEqual(await (await request('/api/payment-qr?business=harbor',{headers:{cookie:cashier.cookie}})).json(),{configured:false});assert.equal((await request('/api/payment-qr/image?business=harbor',{headers:{cookie:cashier.cookie}})).status,404);
   assert.deepEqual(app.db.prepare("SELECT action FROM audit_events WHERE action LIKE 'Payment QR %' ORDER BY rowid").all().map(row=>row.action),['Payment QR added','Payment QR added','Payment QR replaced','Payment QR removed']);
+});
+
+test('configures tenant thermal printers and print routing with scoped admin mutations',async()=>{
+  assert.deepEqual(app.db.prepare('PRAGMA table_info(tenant_printers)').all().map(column=>column.name),['id','business_id','name','host','port','paper_width','enabled','created_at']);
+  const admin=await login('admin.harbor'),gardenAdmin=await login('admin.garden'),cashier=await login('cashier.harbor'),manager=await login('manager.harbor');
+  const headers=auth=>({cookie:auth.cookie,'x-csrf-token':auth.csrf,'content-type':'application/json'});
+  const create=(auth,business,body)=>request(`/api/printers?business=${business}`,{method:'POST',headers:headers(auth),body:JSON.stringify(body)});
+  const settings=(auth,business,body)=>request(`/api/print-settings?business=${business}`,{method:'PUT',headers:headers(auth),body:JSON.stringify(body)});
+  let response=await request('/api/printers?business=harbor',{headers:{cookie:admin.cookie}});assert.equal(response.status,200);let body=await response.json();assert.deepEqual(body.printers,[]);assert.deepEqual(body.settings,{receiptPrinterId:null,kitchenPrinterId:null,autoPrintReceipt:true,autoPrintKitchen:false,updatedAt:null});
+  assert.equal((await request('/api/printers?business=harbor')).status,401);
+  assert.equal((await request('/api/printers?business=all',{headers:{cookie:admin.cookie}})).status,403);
+  assert.equal((await request('/api/printers?business=garden',{headers:{cookie:admin.cookie}})).status,403);
+  assert.equal((await create(cashier,'harbor',{name:'Front',host:'192.168.1.50',port:9100,paperWidth:80,enabled:true})).status,403);
+  assert.equal((await create(manager,'harbor',{name:'Front',host:'192.168.1.50',port:9100,paperWidth:80,enabled:true})).status,403);
+  assert.equal((await create(admin,'harbor',{name:'Front',host:'http://printer',port:9100,paperWidth:80,enabled:true})).status,400);
+  assert.equal((await create(admin,'harbor',{name:'Front',host:'192.168.1.50',port:0,paperWidth:80,enabled:true})).status,400);
+  assert.equal((await create(admin,'harbor',{name:'Front',host:'192.168.1.50',port:9100,paperWidth:70,enabled:true})).status,400);
+  response=await create(admin,'harbor',{name:'Front',host:'192.168.1.50',port:9100,paperWidth:80,enabled:true});assert.equal(response.status,201);const front=(await response.json()).printer;assert.equal(front.name,'Front');assert.equal(front.paperWidth,80);
+  response=await create(admin,'harbor',{name:'Kitchen',host:'192.168.1.51',port:9100,paperWidth:58,enabled:true});assert.equal(response.status,201);const kitchen=(await response.json()).printer;
+  assert.equal((await create(admin,'harbor',{name:'Front',host:'192.168.1.52',port:9100,paperWidth:80,enabled:true})).status,409);
+  response=await create(gardenAdmin,'garden',{name:'Garden front',host:'192.168.2.50',port:9100,paperWidth:80,enabled:true});assert.equal(response.status,201);const garden=(await response.json()).printer;
+  assert.equal((await request(`/api/printers/${garden.id}`,{method:'PUT',headers:headers(admin),body:JSON.stringify({name:'Hijack',host:'192.168.1.99',port:9100,paperWidth:80,enabled:true})})).status,404);
+  assert.equal((await request(`/api/printers/${garden.id}`,{method:'DELETE',headers:{cookie:admin.cookie,'x-csrf-token':admin.csrf}})).status,404);
+  assert.equal((await settings(admin,'harbor',{receiptPrinterId:garden.id,kitchenPrinterId:null,autoPrintReceipt:true,autoPrintKitchen:false})).status,400);
+  assert.equal((await settings(admin,'harbor',{receiptPrinterId:front.id,kitchenPrinterId:kitchen.id,autoPrintReceipt:'yes',autoPrintKitchen:false})).status,400);
+  response=await settings(admin,'harbor',{receiptPrinterId:front.id,kitchenPrinterId:kitchen.id,autoPrintReceipt:true,autoPrintKitchen:false});assert.equal(response.status,200);body=await response.json();assert.equal(body.settings.receiptPrinterId,front.id);assert.equal(body.settings.autoPrintReceipt,true);assert.equal(body.settings.autoPrintKitchen,false);
+  response=await request('/api/printers?business=harbor',{headers:{cookie:cashier.cookie}});assert.equal(response.status,200);body=await response.json();assert.equal(body.printers.length,2);assert.equal(body.settings.kitchenPrinterId,kitchen.id);
+  response=await request(`/api/printers/${kitchen.id}/test`,{method:'POST',headers:{cookie:admin.cookie,'x-csrf-token':admin.csrf}});assert.equal(response.status,200);assert.equal(printJobs.length,1);assert.equal(printJobs[0].printer.name,'Kitchen');assert.match(printJobs[0].bytes.toString('latin1'),/PRINTER TEST/);
+  assert.equal((await request(`/api/printers/${kitchen.id}/test`,{method:'POST',headers:{cookie:cashier.cookie,'x-csrf-token':cashier.csrf}})).status,403);
+  response=await request(`/api/printers/${front.id}`,{method:'DELETE',headers:{cookie:admin.cookie,'x-csrf-token':admin.csrf}});assert.equal(response.status,200);body=await (await request('/api/printers?business=harbor',{headers:{cookie:admin.cookie}})).json();assert.equal(body.settings.receiptPrinterId,null);assert.equal(body.settings.kitchenPrinterId,kitchen.id);
+  assert.deepEqual(app.db.prepare("SELECT action FROM audit_events WHERE action LIKE 'Printer %' OR action LIKE 'Test ticket %' ORDER BY rowid").all().map(row=>row.action),['Printer Front added','Printer Kitchen added','Printer Garden front added','Test ticket sent to Kitchen','Printer Front removed']);
+});
+
+test('prints receipts and kitchen tickets with per-job routing and auto-print defaults',async()=>{
+  const admin=await login('admin.harbor'),cashier=await login('cashier.harbor'),kitchenUser=await login('kitchen.harbor'),display=await login('display.harbor');
+  const headers=auth=>({cookie:auth.cookie,'x-csrf-token':auth.csrf,'content-type':'application/json'});
+  const create=async(name,host,paperWidth)=>{const response=await request('/api/printers?business=harbor',{method:'POST',headers:headers(admin),body:JSON.stringify({name,host,port:9100,paperWidth,enabled:true})});assert.equal(response.status,201);return (await response.json()).printer};
+  const front=await create('Front','192.168.1.50',80),kitchen=await create('Kitchen','192.168.1.51',58);
+  const save=async body=>{const response=await request('/api/print-settings?business=harbor',{method:'PUT',headers:headers(admin),body:JSON.stringify(body)});assert.equal(response.status,200);return (await response.json()).settings};
+  await save({receiptPrinterId:front.id,kitchenPrinterId:kitchen.id,autoPrintReceipt:true,autoPrintKitchen:false});
+  const current=await state(admin),order=current.body.data.orders.find(item=>item.status==='Completed');
+  const print=(auth,body)=>request('/api/print?business=harbor',{method:'POST',headers:headers(auth),body:JSON.stringify(body)});
+  assert.equal((await request('/api/print?business=harbor',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({orderId:order.id,type:'receipt',auto:true})})).status,401);
+  assert.equal((await request('/api/print?business=harbor',{method:'POST',headers:{cookie:cashier.cookie,'content-type':'application/json'},body:JSON.stringify({orderId:order.id,type:'receipt',auto:true})})).status,403);
+  assert.equal((await print(display,{orderId:order.id,type:'receipt',auto:false})).status,400);
+  assert.equal((await print(cashier,{orderId:'missing',type:'receipt',auto:false})).status,404);
+  assert.equal((await print(cashier,{orderId:order.id,type:'label',auto:false})).status,400);
+  let response=await print(cashier,{orderId:order.id,type:'receipt',auto:true});assert.equal(response.status,200);assert.deepEqual(await response.json(),{printed:true,printerId:front.id,printerName:'Front'});assert.equal(printJobs.length,1);assert.match(printJobs[0].bytes.toString('latin1'),new RegExp(order.id));assert.match(printJobs[0].bytes.toString('latin1'),/Receipt/);
+  response=await print(cashier,{orderId:order.id,type:'kitchen',auto:true});assert.equal(response.status,200);assert.deepEqual(await response.json(),{printed:false,reason:'auto-disabled'});assert.equal(printJobs.length,1);
+  response=await print(kitchenUser,{orderId:order.id,type:'kitchen',auto:false});assert.equal(response.status,200);assert.equal((await response.json()).printerName,'Kitchen');assert.equal(printJobs.length,2);const ticket=printJobs[1].bytes.toString('latin1');assert.match(ticket,/KITCHEN ORDER/);assert.match(ticket,new RegExp(order.id));assert.doesNotMatch(ticket,/Rp /);
+  assert.equal((await print(kitchenUser,{orderId:order.id,type:'receipt',auto:false})).status,403);
+  await save({receiptPrinterId:front.id,kitchenPrinterId:kitchen.id,autoPrintReceipt:true,autoPrintKitchen:true});
+  response=await print(cashier,{orderId:order.id,type:'kitchen',auto:true});assert.equal(response.status,200);assert.equal((await response.json()).printed,true);assert.equal(printJobs.length,3);
+  await request(`/api/printers/${front.id}`,{method:'PUT',headers:headers(admin),body:JSON.stringify({name:'Front',host:'192.168.1.50',port:9100,paperWidth:80,enabled:false})});
+  response=await print(cashier,{orderId:order.id,type:'receipt',auto:false});assert.equal(response.status,200);assert.deepEqual(await response.json(),{printed:false,reason:'printer-disabled'});
+  await save({receiptPrinterId:null,kitchenPrinterId:kitchen.id,autoPrintReceipt:true,autoPrintKitchen:true});
+  response=await print(cashier,{orderId:order.id,type:'receipt',auto:false});assert.equal(response.status,200);assert.deepEqual(await response.json(),{printed:false,reason:'no-printer'});
+  assert.equal((await print(cashier,{orderId:order.id,type:'receipt',auto:true})).status,200);
+  assert.equal((await request('/api/print?business=garden',{method:'POST',headers:headers(cashier),body:JSON.stringify({orderId:order.id,type:'receipt',auto:false})})).status,403);
 });
 
 test('parses tenant menu photos without mutation and creates one or many menus atomically',async()=>{

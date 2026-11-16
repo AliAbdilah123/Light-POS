@@ -720,6 +720,23 @@ button.table-row {
 .admin-table th button { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .admin-table tbody tr:hover { background: var(--accent-soft); }
 .admin-row-actions { display: flex; gap: 8px; }
+.printers-table .admin-table { min-width: 0; }
+.printers-table .admin-table th, .printers-table .admin-table td { padding: 10px; }
+.receipt-jpg-preview {
+  background: #fff; color: #111; border: 1px solid var(--line);
+  border-radius: 8px; padding: 18px; margin-top: 14px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem; line-height: 1.45; max-height: 420px; overflow: auto;
+}
+.receipt-jpg-preview p { margin: 0; }
+.receipt-jpg-preview .center { text-align: center; }
+.receipt-jpg-preview .pair { display: flex; justify-content: space-between; gap: 12px; }
+.receipt-jpg-preview .pair b { font-weight: 600; }
+.receipt-jpg-preview .title { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.04em; }
+.receipt-jpg-preview .total { font-weight: 700; }
+.receipt-jpg-preview .small { color: #4b5563; font-size: 0.72rem; }
+.receipt-jpg-preview .indent { padding-left: 14px; }
+.receipt-jpg-preview hr { border: 0; border-top: 1px dashed #c7cbd3; margin: 8px 0; }
 
 /* ---------- Seats ---------- */
 .seat-layout { display: grid; grid-template-columns: 2fr minmax(260px, 1fr); gap: 14px; }

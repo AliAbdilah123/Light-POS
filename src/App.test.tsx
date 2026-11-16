@@ -8,7 +8,7 @@ import type {Data} from './store';
 import {seedCoupons,seedExpenses,seedMenus,seedNotes,seedOrders,seedOrderTypes,seedShifts,seedSops,seedTables} from './mockData';
 
 const initial:Data={orders:seedOrders,orderTypes:seedOrderTypes,tables:seedTables,menus:seedMenus,experiments:[],coupons:seedCoupons,notes:seedNotes,expenses:seedExpenses,leaves:[],staff:[],shifts:seedShifts,shiftSessions:[{id:'shift-open',businessId:'harbor',cashierId:'test-cashier',cashierName:'Test cashier',openedAt:'2026-09-02T01:00:00.000Z',openingCash:500000}],inventory:[],inventoryMovements:[],sops:seedSops,sopHistory:[],messages:[],messagesRead:[],audit:['09:14 - Ayu created order S-104'],targets:{harbor:22000000,garden:25000000,north:18000000},planningNotes:{},schedules:{Mon:'07:00-21:00',Tue:'07:00-21:00',Wed:'07:00-21:00',Thu:'07:00-21:00',Fri:'07:00-22:00',Sat:'08:00-22:00',Sun:'08:00-20:00'}};
-let serverState:Data|undefined,revision=1,authenticated=true,conflict:Data|undefined,paymentQrConfigured=false,menuImportError='',tenantFixtures=[{id:'harbor',name:'Harbor Café',location:'Balikpapan',active:true},{id:'garden',name:'Garden Table',location:'Samarinda',active:false},{id:'north',name:'North Bakehouse',location:'Menteng',active:true}],userFixtures=[{id:'u1',displayName:'Zara Cashier',username:'zara',profileId:'system:cashier',active:true},{id:'u2',displayName:'Adi Manager',username:'adi',profileId:'custom-manager',active:false}];
+let serverState:Data|undefined,revision=1,authenticated=true,conflict:Data|undefined,paymentQrConfigured=false,menuImportError='',tenantFixtures=[{id:'harbor',name:'Harbor Café',location:'Balikpapan',active:true},{id:'garden',name:'Garden Table',location:'Samarinda',active:false},{id:'north',name:'North Bakehouse',location:'Menteng',active:true}],userFixtures=[{id:'u1',displayName:'Zara Cashier',username:'zara',profileId:'system:cashier',active:true},{id:'u2',displayName:'Adi Manager',username:'adi',profileId:'custom-manager',active:false}],printerFixtures:Array<{id:string;name:string;host:string;port:number;paperWidth:58|80;enabled:boolean}>=[],printSettingsFixture={receiptPrinterId:null as string|null,kitchenPrinterId:null as string|null,autoPrintReceipt:true,autoPrintKitchen:false},printRequests:Array<{orderId:string;type:string;auto:boolean}>=[];
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json'}});
 const fixtureState=()=>{const saved=JSON.parse(localStorage.getItem('light-pos-demo-v1')||'null')||{};const data={...structuredClone(initial),...saved,menus:saved.menus||structuredClone(seedMenus),tables:saved.tables||structuredClone(seedTables).map(t=>({...t,status:saved.seatStatuses?.[t.id]||t.status})),expenses:(saved.expenses||structuredClone(seedExpenses)).map((e:Data['expenses'][number])=>({...e,category:e.category?.trim()||'Uncategorized',lines:Array.isArray(e.lines)?e.lines:[]}))};if(saved.expenses)localStorage.setItem('light-pos-demo-v1',JSON.stringify(data));return data};
 const sessionFor=(role=(localStorage.getItem('pos-role') as Role)||'cashier')=>({id:`test-${role}`,username:role,name:`Test ${role}`,role,businessIds:role==='superadmin'?['*']:['harbor'],csrfToken:'test-csrf'});
@@ -28,6 +28,13 @@ const fetchMock=vi.fn(async(input:RequestInfo|URL,options:RequestInit={})=>{cons
   if(path==='/payment-qr/image'&&(!options.method||options.method==='GET'))return paymentQrConfigured?new Response(new Uint8Array([137,80,78,71]),{headers:{'content-type':'image/png'}}):json({error:'Payment QR not configured.'},404);
   if(path==='/payment-qr'&&options.method==='PUT'){paymentQrConfigured=true;return json({configured:true,mime:'image/png',updatedAt:'2026-10-31T12:00:00.000Z'});}
   if(path==='/payment-qr'&&options.method==='DELETE'){paymentQrConfigured=false;return json({configured:false});}
+  if(path==='/printers'&&(!options.method||options.method==='GET'))return json({printers:structuredClone(printerFixtures),settings:{...printSettingsFixture,updatedAt:null},paperWidths:[58,80]});
+  if(path==='/printers'&&options.method==='POST'){const body=JSON.parse(String(options.body)),printer={id:`printer-${printerFixtures.length+1}`,...body};printerFixtures.push(printer);return json({printer},201)}
+  if(path.startsWith('/printers/')&&path.endsWith('/test')&&options.method==='POST'){const id=path.split('/')[2],printer=printerFixtures.find(item=>item.id===id);return json({ok:true,printerName:printer?.name||'Printer'})}
+  if(path.startsWith('/printers/')&&options.method==='PUT'){const id=path.split('/')[2],body=JSON.parse(String(options.body)),index=printerFixtures.findIndex(item=>item.id===id);printerFixtures[index]={id,...body};return json({printer:printerFixtures[index]})}
+  if(path.startsWith('/printers/')&&options.method==='DELETE'){const id=path.split('/')[2];printerFixtures=printerFixtures.filter(item=>item.id!==id);if(printSettingsFixture.receiptPrinterId===id)printSettingsFixture.receiptPrinterId=null;if(printSettingsFixture.kitchenPrinterId===id)printSettingsFixture.kitchenPrinterId=null;return json({ok:true})}
+  if(path==='/print-settings'&&options.method==='PUT'){const body=JSON.parse(String(options.body));printSettingsFixture={receiptPrinterId:body.receiptPrinterId,kitchenPrinterId:body.kitchenPrinterId,autoPrintReceipt:body.autoPrintReceipt,autoPrintKitchen:body.autoPrintKitchen};return json({settings:{...printSettingsFixture,updatedAt:null}})}
+  if(path==='/print'&&options.method==='POST'){const body=JSON.parse(String(options.body));printRequests.push(body);return json({printed:true,printerId:'printer-1',printerName:'Front printer'})}
   if(path==='/ai/menu-parsing'&&options.method==='POST')return json({items:[{sourcePhoto:0,sourceLabel:'menu.png',name:'Photo Kopi',description:'Printed menu',category:'Coffee',price:36000,warnings:[]},{sourcePhoto:0,sourceLabel:'menu.png',name:'Cappuccino',description:'Duplicate',category:'Coffee',price:30000,warnings:[]}]});
   if(path==='/menu'&&options.method==='POST'){if(menuImportError)return json({error:menuImportError},409);const items=JSON.parse(String(options.body));serverState={...(serverState??fixtureState()),menus:[...(serverState??fixtureState()).menus,...items.map((item:{name:string;description:string;category:string;price:number})=>({id:crypto.randomUUID(),name:item.name,category:item.category,price:item.price,cost:0,available:true,availability:'available',archived:false,icon:'◇',currentVersion:1,versions:[{...item,version:1,ingredients:[],createdAt:new Date().toISOString()}]}))]};return json({data:structuredClone(serverState)},201)}
   if(path==='/state'&&options.method==='PUT'){
@@ -40,7 +47,7 @@ const fetchMock=vi.fn(async(input:RequestInfo|URL,options:RequestInit={})=>{cons
 });
 const renderApp=async(path:string)=>{render(<MemoryRouter initialEntries={[path]}><App/></MemoryRouter>);await waitFor(()=>expect(screen.queryByLabelText('Loading session')).not.toBeInTheDocument())};
 
-beforeEach(()=>{serverState=undefined;revision=1;authenticated=true;conflict=undefined;paymentQrConfigured=false;menuImportError='';tenantFixtures=[{id:'harbor',name:'Harbor Café',location:'Balikpapan',active:true},{id:'garden',name:'Garden Table',location:'Samarinda',active:false},{id:'north',name:'North Bakehouse',location:'Menteng',active:true}];userFixtures=[{id:'u1',displayName:'Zara Cashier',username:'zara',profileId:'system:cashier',active:true},{id:'u2',displayName:'Adi Manager',username:'adi',profileId:'custom-manager',active:false}];vi.stubGlobal('fetch',fetchMock);fetchMock.mockClear()});
+beforeEach(()=>{serverState=undefined;revision=1;authenticated=true;conflict=undefined;paymentQrConfigured=false;menuImportError='';printerFixtures=[];printSettingsFixture={receiptPrinterId:null,kitchenPrinterId:null,autoPrintReceipt:true,autoPrintKitchen:false};printRequests=[];tenantFixtures=[{id:'harbor',name:'Harbor Café',location:'Balikpapan',active:true},{id:'garden',name:'Garden Table',location:'Samarinda',active:false},{id:'north',name:'North Bakehouse',location:'Menteng',active:true}];userFixtures=[{id:'u1',displayName:'Zara Cashier',username:'zara',profileId:'system:cashier',active:true},{id:'u2',displayName:'Adi Manager',username:'adi',profileId:'custom-manager',active:false}];vi.stubGlobal('fetch',fetchMock);fetchMock.mockClear()});
 afterEach(()=>{vi.useRealTimers();cleanup();localStorage.clear();vi.restoreAllMocks();vi.unstubAllGlobals()});
 
 describe('shadcn page controls',()=>{
@@ -80,6 +87,42 @@ describe('representative workflows',()=>{
   it('creates a new user in a modal and lists it in the table',async()=>{localStorage.setItem('pos-role','admin');await renderApp('/admin/users-access');await userEvent.click(await screen.findByRole('button',{name:'Create user'}));const dialog=screen.getByRole('dialog',{name:'Create user'});expect(dialog).toBeInTheDocument();await userEvent.type(screen.getByLabelText('Display name'),'Budi Supervisor');await userEvent.type(screen.getByLabelText('Username'),'budi');await userEvent.type(screen.getByLabelText('Password'),'secret-password-123');await userEvent.click(within(dialog).getByRole('button',{name:'Create user'}));expect(await screen.findByText('Budi Supervisor')).toBeInTheDocument()});
 
   it('lets tenant admins configure a validated payment QR and requires one selected tenant',async()=>{vi.spyOn(window,'confirm').mockReturnValue(true);localStorage.setItem('pos-role','admin');await renderApp('/admin/payment-qr');expect(await screen.findByRole('heading',{name:'Payment QR'})).toBeInTheDocument();expect(screen.getByText('No payment QR configured.')).toBeInTheDocument();const input=screen.getByLabelText('QR image');await userEvent.upload(input,new File([new Uint8Array([137,80,78,71])],'qr.png',{type:'image/png'}));await userEvent.click(screen.getByRole('button',{name:'Upload QR'}));expect(await screen.findByRole('img',{name:'Payment QR for Harbor Café'})).toBeInTheDocument();await userEvent.click(screen.getByRole('button',{name:'Remove QR'}));await userEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Remove QR'}));expect(await screen.findByText('No payment QR configured.')).toBeInTheDocument();cleanup();localStorage.setItem('pos-role','superadmin');await renderApp('/admin/payment-qr');expect(screen.getByText('Select one tenant to configure its payment QR.')).toBeInTheDocument();expect(screen.getByRole('button',{name:'Upload QR'})).toBeDisabled()});
+
+  it('configures thermal printers and auto-print routing for one tenant',async()=>{
+    localStorage.setItem('pos-role','admin');await renderApp('/admin/printers');
+    expect(await screen.findByRole('heading',{name:'Printers & printing'})).toBeInTheDocument();
+    expect(screen.getByText('No printers configured for this tenant.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Auto-print receipt after payment')).toBeChecked();
+    expect(screen.getByLabelText('Auto-print kitchen ticket when an order is sent to the kitchen')).not.toBeChecked();
+    expect(screen.getByRole('button',{name:'Download sample JPG'})).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button',{name:'Add printer'}));
+    await userEvent.type(screen.getByLabelText('Printer name'),'Front printer');
+    await userEvent.type(screen.getByLabelText('Host or IP'),'192.168.1.50');
+    await userEvent.click(screen.getByRole('button',{name:'Save printer'}));
+    expect(await screen.findByRole('button',{name:'Edit Front printer'})).toBeInTheDocument();
+    expect(screen.getByText('Printer added.')).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Receipt printer'),'printer-1');
+    await userEvent.click(screen.getByRole('button',{name:'Save print routing'}));
+    expect(await screen.findByText('Print routing saved.')).toBeInTheDocument();
+    expect(printSettingsFixture.receiptPrinterId).toBe('printer-1');
+    await userEvent.click(screen.getByLabelText('Auto-print kitchen ticket when an order is sent to the kitchen'));
+    await userEvent.click(screen.getByRole('button',{name:'Save print routing'}));
+    await waitFor(()=>expect(printSettingsFixture.autoPrintKitchen).toBe(true));
+    await userEvent.click(screen.getByRole('button',{name:'Test Front printer'}));
+    expect(await screen.findByText('Test ticket sent to Front printer.')).toBeInTheDocument();
+  });
+
+  it('auto-prints a receipt and kitchen ticket after payment and allows manual copies',async()=>{
+    paymentQrConfigured=true;await renderApp('/cashier/order');const u=userEvent.setup();
+    await u.click(screen.getByRole('button',{name:/Cappuccino/i}));await u.click(screen.getByRole('button',{name:/Add to order/}));await u.click(screen.getByRole('button',{name:/^T01/}));await u.click(screen.getAllByRole('button',{name:'Review & pay'})[0]);await u.click(screen.getByRole('button',{name:/QRIS/}));await u.click(screen.getByRole('button',{name:/Payment received/}));
+    await waitFor(()=>expect(printRequests.filter(request=>request.auto)).toHaveLength(2));
+    expect(printRequests.filter(request=>request.auto).map(request=>request.type).sort()).toEqual(['kitchen','receipt']);
+    expect(screen.getByRole('button',{name:'Save receipt as JPG'})).toBeInTheDocument();
+    await u.click(screen.getByRole('button',{name:'Print receipt'}));
+    await waitFor(()=>expect(printRequests.some(request=>!request.auto&&request.type==='receipt')).toBe(true));
+    await u.click(screen.getByRole('button',{name:'Print kitchen order'}));
+    await waitFor(()=>expect(printRequests.some(request=>!request.auto&&request.type==='kitchen')).toBe(true));
+  });
 
   it('shows only a configured tenant QR for QRIS and fails closed when absent',async()=>{
     await renderApp('/cashier/order');const u=userEvent.setup();

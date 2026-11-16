@@ -24,6 +24,8 @@ import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Modal, PageHead, SectionTitle } from '../components/molecules';
+import { printOrder, printReason } from '../services/printing';
+import { downloadReceiptJpg } from '../services/receiptImage';
 
 type CatalogItem = MenuItem & MenuVersion & { bundleError?: string };
 
@@ -43,6 +45,7 @@ export function OrderEntry() {
   const [replacing, setReplacing] = useState<string>();
   const [checkout, setCheckout] = useState(false);
   const [receipt, setReceipt] = useState<Order>();
+  const [printNotice, setPrintNotice] = useState('');
   const [tendered, setTendered] = useState('');
   const [payError, setPayError] = useState('');
   const [qris, setQris] = useState(false);
@@ -197,9 +200,71 @@ export function OrderEntry() {
     setPayError('');
   };
   const finish = (order: Order) => {
+    setPrintNotice('');
     setReceipt(order);
     s.clearCart();
     resetPayment();
+    void s.whenSaved().then(async () => {
+      const outcomes = await Promise.all([
+        printOrder(s.business, order.id, 'receipt', true, s.user.csrfToken)
+          .then((result) =>
+            result.printed ? `Receipt sent to ${result.printerName}.` : ''
+          )
+          .catch((reason) => `Receipt print failed: ${reason.message}`),
+        printOrder(s.business, order.id, 'kitchen', true, s.user.csrfToken)
+          .then((result) =>
+            result.printed ? `Kitchen ticket sent to ${result.printerName}.` : ''
+          )
+          .catch((reason) => `Kitchen ticket print failed: ${reason.message}`),
+      ]);
+      setPrintNotice(outcomes.filter(Boolean).join(' '));
+    });
+  };
+  const printReceiptCopy = async (type: 'receipt' | 'kitchen') => {
+    if (!receipt) return;
+    setPrintNotice('Printing…');
+    try {
+      const result = await printOrder(
+        s.business,
+        receipt.id,
+        type,
+        false,
+        s.user.csrfToken
+      );
+      setPrintNotice(
+        result.printed
+          ? `${type === 'receipt' ? 'Receipt' : 'Kitchen ticket'} sent to ${
+              result.printerName
+            }.`
+          : printReason(result.reason)
+      );
+    } catch (reason) {
+      setPrintNotice(
+        reason instanceof Error ? reason.message : 'Print failed.'
+      );
+    }
+  };
+  const saveReceiptJpg = () => {
+    if (!receipt) return;
+    const tenant = s.tenants.find((item) => item.id === s.business);
+    const tables =
+      receipt.tableIds?.map(
+        (id) => s.data.tables.find((table) => table.id === id)?.name || id
+      ) || [];
+    try {
+      downloadReceiptJpg(
+        receipt,
+        { name: tenant?.name || s.business, location: tenant?.location },
+        tables
+      );
+      setPrintNotice('Receipt JPG downloaded.');
+    } catch (reason) {
+      setPrintNotice(
+        reason instanceof Error
+          ? reason.message
+          : 'The receipt image could not be created.'
+      );
+    }
   };
   const payCash = () => {
     if (cashGiven < total) {
@@ -1044,6 +1109,20 @@ export function OrderEntry() {
               Cashier {receipt.cashierName || '—'}
               {receipt.tableIds?.length ? ' · table released' : ''}
             </p>
+            {printNotice && (
+              <p className="hint-text" role="status">
+                {printNotice}
+              </p>
+            )}
+            <div className="form-actions">
+              <Button onClick={() => void printReceiptCopy('receipt')}>
+                Print receipt
+              </Button>
+              <Button onClick={() => void printReceiptCopy('kitchen')}>
+                Print kitchen order
+              </Button>
+              <Button onClick={saveReceiptJpg}>Save receipt as JPG</Button>
+            </div>
             <Button variant="primary" onClick={() => setReceipt(undefined)}>
               Start next order
             </Button>

@@ -10,6 +10,8 @@ import { Input } from '../components/ui/input';
 import { NativeSelect as Select } from '../components/ui/native-select';
 import { Metric, Modal, PageHead, SectionTitle } from '../components/molecules';
 import { StateBoundary } from '../components/DemoState';
+import { printOrder, printReason } from '../services/printing';
+import { downloadReceiptJpg } from '../services/receiptImage';
 
 export function OrdersPage() {
   const s = useStore();
@@ -21,6 +23,7 @@ export function OrdersPage() {
   const [method, setMethod] = useState<'Cash' | 'QRIS'>('Cash');
   const [tendered, setTendered] = useState('');
   const [error, setError] = useState('');
+  const [printNotice, setPrintNotice] = useState('');
   const order = s.data.orders.find((o) => o.id === selected);
   const rows = useMemo(
     () =>
@@ -47,17 +50,72 @@ export function OrdersPage() {
     setPaying(false);
     setTendered('');
     setError('');
+    setPrintNotice('');
   };
   const release = (tables: string[] | undefined) =>
     tables?.length
       ? s.data.tables.filter((t) => tables.includes(t.id)).map((t) => t.id)
       : [];
+  const printCopy = async (
+    type: 'receipt' | 'kitchen',
+    target: Order,
+    auto: boolean
+  ) => {
+    const label = type === 'receipt' ? 'Receipt' : 'Kitchen ticket';
+    setPrintNotice(auto ? '' : 'Printing…');
+    try {
+      if (auto) await s.whenSaved();
+      const result = await printOrder(
+        s.business,
+        target.id,
+        type,
+        auto,
+        s.user.csrfToken
+      );
+      setPrintNotice(
+        result.printed
+          ? `${label} sent to ${result.printerName}.`
+          : auto
+          ? ''
+          : printReason(result.reason)
+      );
+    } catch (reason) {
+      setPrintNotice(
+        `${label} print failed: ${
+          reason instanceof Error ? reason.message : 'Unknown error'
+        }`
+      );
+    }
+  };
+  const saveReceiptJpg = () => {
+    if (!order) return;
+    const tenant = s.tenants.find((item) => item.id === order.businessId);
+    const tables =
+      order.tableIds?.map(
+        (id) => s.data.tables.find((table) => table.id === id)?.name || id
+      ) || [];
+    try {
+      downloadReceiptJpg(
+        order,
+        { name: tenant?.name || order.businessId, location: tenant?.location },
+        tables
+      );
+      setPrintNotice('Receipt JPG downloaded.');
+    } catch (reason) {
+      setPrintNotice(
+        reason instanceof Error
+          ? reason.message
+          : 'The receipt image could not be created.'
+      );
+    }
+  };
   const advance = (target: Order) => {
+    const next = nextStatus(target.status);
     const released = target.status === 'Ready' ? release(target.tableIds) : [];
     s.update((d) => ({
       ...d,
       orders: d.orders.map((o) =>
-        o.id === target.id ? { ...o, status: nextStatus(o.status) } : o
+        o.id === target.id ? { ...o, status: next } : o
       ),
       ...(released.length
         ? {
@@ -68,11 +126,9 @@ export function OrdersPage() {
             ),
           }
         : {}),
-      audit: [
-        `Order ${target.id} advanced to ${nextStatus(target.status)}`,
-        ...d.audit,
-      ],
+      audit: [`Order ${target.id} advanced to ${next}`, ...d.audit],
     }));
+    if (next === 'Preparing') void printCopy('kitchen', target, true);
   };
   const completePayment = () => {
     if (!order) return;
@@ -108,6 +164,7 @@ export function OrdersPage() {
         : {}),
       audit: [`Order ${order.id} paid ${method}`, ...d.audit],
     }));
+    void printCopy('receipt', order, true);
     close();
   };
   return (
@@ -288,6 +345,20 @@ export function OrdersPage() {
                 Taken by {order.cashierName}
               </p>
             )}
+            {printNotice && (
+              <p className="hint-text" role="status">
+                {printNotice}
+              </p>
+            )}
+            <div className="form-actions">
+              <Button onClick={() => void printCopy('receipt', order, false)}>
+                Print receipt
+              </Button>
+              <Button onClick={() => void printCopy('kitchen', order, false)}>
+                Print kitchen ticket
+              </Button>
+              <Button onClick={saveReceiptJpg}>Save receipt as JPG</Button>
+            </div>
 
             {['Held', 'Preparing'].includes(order.status) && (
               <Button variant="primary" onClick={() => advance(order)}>

@@ -5,6 +5,7 @@ import {hashToken,passwordHash,passwordMatches,safeEqual} from './auth.mjs';
 import {BUSINESS,seedReceipts,seedState} from './seed.mjs';
 import {createReceiptUpload} from './receiptUpload.mjs';
 import {extractMenuPhotos,parseMenuPhotos} from './menuImport.mjs';
+import {PAPER_WIDTHS,PRINT_TYPES,renderPrintJob,sendToPrinter} from './printing.mjs';
 
 const ROLES=new Set(['cashier','manager','admin','superadmin','kitchen','display']);
 const ROLE_CAPABILITIES={cashier:['cashierDashboard','createOrder','cashierPeople','manageNotes','manageOrders','viewSeats'],manager:['managerDashboard','viewRevenue','manageExpenses','manageInventory','viewProfitability','runSop','manageOrders','viewSeats','approveLeave'],admin:['cashierDashboard','createOrder','cashierPeople','manageNotes','manageOrders','viewSeats','managerDashboard','viewRevenue','manageExpenses','manageInventory','viewProfitability','runSop','adminDashboard','adminInsights','manageCatalog','adminOperations','adminStaff','adminSop','viewAccessProfiles','editAccessProfiles','approveLeave'],kitchen:['viewKitchen'],display:['viewDisplay']};
@@ -144,7 +145,7 @@ function migrateProfiles(db){
   for(const user of db.prepare("SELECT id,role,business_ids FROM users WHERE profile_id LIKE 'system:%'").all()){const businesses=JSON.parse(user.business_ids),business=businesses.find(id=>id!=='*'),profile=business&&db.prepare('SELECT id FROM access_profiles WHERE business_id=? AND name=?').get(business,user.role[0].toUpperCase()+user.role.slice(1));if(profile)db.prepare('UPDATE users SET profile_id=? WHERE id=?').run(profile.id,user.id)}
 }
 
-export function initializeSchema(db){db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; CREATE TABLE IF NOT EXISTS app_state (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL, role TEXT NOT NULL, business_ids TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, profile_id TEXT, active INTEGER NOT NULL DEFAULT 1); CREATE TABLE IF NOT EXISTS access_profiles (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, capabilities TEXT NOT NULL, menu_scope TEXT NOT NULL, UNIQUE(business_id,name)); CREATE TABLE IF NOT EXISTS tenants (id TEXT PRIMARY KEY,name TEXT NOT NULL,location TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1); CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, csrf_token TEXT NOT NULL, expires_at TEXT NOT NULL, created_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, actor_id TEXT NOT NULL, actor_username TEXT NOT NULL, actor_role TEXT NOT NULL, business_id TEXT NOT NULL, action TEXT NOT NULL, revision INTEGER NOT NULL, created_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, actor_id TEXT NOT NULL, business_id TEXT NOT NULL, name TEXT NOT NULL, mime TEXT NOT NULL, bytes BLOB NOT NULL, result TEXT NOT NULL, created_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS tenant_payment_qr (business_id TEXT PRIMARY KEY REFERENCES tenants(id),mime TEXT NOT NULL,bytes BLOB NOT NULL,updated_by TEXT NOT NULL REFERENCES users(id),updated_at TEXT NOT NULL);');const columns=db.prepare('PRAGMA table_info(users)').all();if(!columns.some(x=>x.name==='profile_id'))db.exec('ALTER TABLE users ADD COLUMN profile_id TEXT');if(!columns.some(x=>x.name==='active'))db.exec('ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1');for(const id of BUSINESS_IDS)db.prepare('INSERT OR IGNORE INTO tenants VALUES(?,?,?,1)').run(id,BUSINESS[id]?.name||id[0].toUpperCase()+id.slice(1),BUSINESS[id]?.location||'Indonesia')}
+export function initializeSchema(db){db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; CREATE TABLE IF NOT EXISTS app_state (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL, role TEXT NOT NULL, business_ids TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, profile_id TEXT, active INTEGER NOT NULL DEFAULT 1); CREATE TABLE IF NOT EXISTS access_profiles (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, capabilities TEXT NOT NULL, menu_scope TEXT NOT NULL, UNIQUE(business_id,name)); CREATE TABLE IF NOT EXISTS tenants (id TEXT PRIMARY KEY,name TEXT NOT NULL,location TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1); CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, csrf_token TEXT NOT NULL, expires_at TEXT NOT NULL, created_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, actor_id TEXT NOT NULL, actor_username TEXT NOT NULL, actor_role TEXT NOT NULL, business_id TEXT NOT NULL, action TEXT NOT NULL, revision INTEGER NOT NULL, created_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, actor_id TEXT NOT NULL, business_id TEXT NOT NULL, name TEXT NOT NULL, mime TEXT NOT NULL, bytes BLOB NOT NULL, result TEXT NOT NULL, created_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS tenant_payment_qr (business_id TEXT PRIMARY KEY REFERENCES tenants(id),mime TEXT NOT NULL,bytes BLOB NOT NULL,updated_by TEXT NOT NULL REFERENCES users(id),updated_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS tenant_printers (id TEXT PRIMARY KEY,business_id TEXT NOT NULL REFERENCES tenants(id),name TEXT NOT NULL,host TEXT NOT NULL,port INTEGER NOT NULL DEFAULT 9100,paper_width INTEGER NOT NULL DEFAULT 80,enabled INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,UNIQUE(business_id,name)); CREATE TABLE IF NOT EXISTS tenant_print_settings (business_id TEXT PRIMARY KEY REFERENCES tenants(id),receipt_printer_id TEXT REFERENCES tenant_printers(id) ON DELETE SET NULL,kitchen_printer_id TEXT REFERENCES tenant_printers(id) ON DELETE SET NULL,auto_print_receipt INTEGER NOT NULL DEFAULT 1,auto_print_kitchen INTEGER NOT NULL DEFAULT 0,updated_by TEXT,updated_at TEXT NOT NULL); CREATE INDEX IF NOT EXISTS tenant_printers_business ON tenant_printers(business_id);');const columns=db.prepare('PRAGMA table_info(users)').all();if(!columns.some(x=>x.name==='profile_id'))db.exec('ALTER TABLE users ADD COLUMN profile_id TEXT');if(!columns.some(x=>x.name==='active'))db.exec('ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1');for(const id of BUSINESS_IDS)db.prepare('INSERT OR IGNORE INTO tenants VALUES(?,?,?,1)').run(id,BUSINESS[id]?.name||id[0].toUpperCase()+id.slice(1),BUSINESS[id]?.location||'Indonesia')}
 
 export async function openDatabase(filename=process.env.POS_DB_PATH||'sqlite.db'){
   const db=new DatabaseSync(filename);initializeSchema(db);db.exec('CREATE TABLE IF NOT EXISTS access_profile_templates (id TEXT PRIMARY KEY, role TEXT NOT NULL UNIQUE, name TEXT NOT NULL UNIQUE, capabilities TEXT NOT NULL, menu_scope TEXT NOT NULL)');
@@ -154,11 +155,16 @@ export async function openDatabase(filename=process.env.POS_DB_PATH||'sqlite.db'
   await ensureDevelopmentAccounts(db);migrateProfiles(db);ensureSeedReceipts(db);return db;
 }
 
-export async function createApp({db:providedDb,dbPath,now=()=>new Date(),secureCookies=process.env.NODE_ENV==='production',loginLimit=5,loginWindowMs=15*60_000}={}){
+export async function createApp({db:providedDb,dbPath,now=()=>new Date(),secureCookies=process.env.NODE_ENV==='production',loginLimit=5,loginWindowMs=15*60_000,printerTransport=sendToPrinter}={}){
   const db=providedDb||await openDatabase(dbPath),attempts=new Map();
   const getUser=req=>{const token=parseCookies(req.headers.cookie).light_pos_session;if(!token)return null;const row=db.prepare('SELECT u.*,s.csrf_token,s.expires_at,s.token_hash FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=?').get(hashToken(token));if(!row||!row.active||new Date(row.expires_at)<=now()){if(row)db.prepare('DELETE FROM sessions WHERE token_hash=?').run(row.token_hash);return null}const businessIds=JSON.parse(row.business_ids);if(!ROLES.has(row.role)||!Array.isArray(businessIds)||businessIds.some(id=>id!=='*'&&!BUSINESSES.has(id)))return null;const custom=row.profile_id&&!row.profile_id.startsWith('system:')?db.prepare('SELECT * FROM access_profiles WHERE id=?').get(row.profile_id):null,system=SYSTEM_PROFILES[row.profile_id]||SYSTEM_PROFILES[`system:${row.role}`],profile=custom?{id:custom.id,capabilities:JSON.parse(custom.capabilities),menuScope:JSON.parse(custom.menu_scope)}:system;return{id:row.id,username:row.username,name:row.display_name,role:row.role,businessIds,csrf:row.csrf_token,tokenHash:row.token_hash,profileId:profile?.id,capabilities:profile?.capabilities||ROLE_CAPABILITIES.admin,menuScope:profile?.menuScope||{mode:'all',categoryIds:[],itemIds:[]}}};
   const publicUser=user=>({id:user.id,username:user.username,name:user.name,role:user.role,businessIds:user.businessIds,csrfToken:user.csrf,profileId:user.profileId,capabilities:user.capabilities,menuScope:user.menuScope});
   const csrfOk=(req,user)=>text(req.headers['x-csrf-token'],200)&&safeEqual(req.headers['x-csrf-token'],user.csrf);
+  const printerRow=row=>({id:row.id,name:row.name,host:row.host,port:row.port,paperWidth:row.paper_width,enabled:!!row.enabled,createdAt:row.created_at});
+  const readPrintSettings=business=>{const row=db.prepare('SELECT receipt_printer_id receiptPrinterId,kitchen_printer_id kitchenPrinterId,auto_print_receipt autoPrintReceipt,auto_print_kitchen autoPrintKitchen,updated_at updatedAt FROM tenant_print_settings WHERE business_id=?').get(business);return{receiptPrinterId:row?.receiptPrinterId??null,kitchenPrinterId:row?.kitchenPrinterId??null,autoPrintReceipt:row?!!row.autoPrintReceipt:true,autoPrintKitchen:row?!!row.autoPrintKitchen:false,updatedAt:row?.updatedAt??null}};
+  const validPrinter=body=>isObject(body)&&text(body.name,60)&&body.name.trim()&&text(body.host,253)&&!body.host.includes('..')&&/^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/.test(body.host.trim())&&Number.isInteger(body.port)&&body.port>=1&&body.port<=65535&&PAPER_WIDTHS.has(body.paperWidth)&&typeof body.enabled==='boolean';
+  const validPrintSettings=(body,business)=>isObject(body)&&typeof body.autoPrintReceipt==='boolean'&&typeof body.autoPrintKitchen==='boolean'&&[body.receiptPrinterId,body.kitchenPrinterId].every(id=>id===null||typeof id==='string'&&!!db.prepare('SELECT id FROM tenant_printers WHERE id=? AND business_id=?').get(id,business));
+  const recordAudit=(user,business,action,created)=>db.prepare('INSERT INTO audit_events VALUES(?,?,?,?,?,?,?,?)').run(randomUUID(),user.id,user.username,user.role,business,action,0,created);
   const handler=async(req,res)=>{try{
     const url=new URL(req.url,'http://localhost'),method=req.method||'GET';
     if(method==='GET'&&url.pathname==='/api/health')return json(res,200,{ok:true});
@@ -206,6 +212,81 @@ export async function createApp({db:providedDb,dbPath,now=()=>new Date(),secureC
       const created=now().toISOString(),audit=action=>db.prepare('INSERT INTO audit_events VALUES(?,?,?,?,?,?,?,?)').run(randomUUID(),user.id,user.username,user.role,business,action,0,created);
       if(method==='PUT'){const image=await readPaymentQr(req),action=row?'Payment QR replaced':'Payment QR added';db.prepare('INSERT INTO tenant_payment_qr VALUES(?,?,?,?,?) ON CONFLICT(business_id) DO UPDATE SET mime=excluded.mime,bytes=excluded.bytes,updated_by=excluded.updated_by,updated_at=excluded.updated_at').run(business,image.mime,image.bytes,user.id,created);audit(action);return json(res,200,{configured:true,mime:image.mime,updatedAt:created})}
       if(method==='DELETE'){db.prepare('DELETE FROM tenant_payment_qr WHERE business_id=?').run(business);if(row)audit('Payment QR removed');return json(res,200,{configured:false})}
+    }
+    if(url.pathname==='/api/printers'||url.pathname.startsWith('/api/printers/')||url.pathname==='/api/print-settings'||url.pathname==='/api/print'){
+      const adminOnly=()=>['admin','superadmin'].includes(user.role);
+      if(method==='GET'&&url.pathname==='/api/printers'){
+        if(!business||business==='all'||!canAccess(user,business))return json(res,403,{error:'Business access denied.'});
+        if(!['admin','superadmin','manager','cashier','kitchen'].includes(user.role))return json(res,403,{error:'Access denied.'});
+        return json(res,200,{printers:db.prepare('SELECT * FROM tenant_printers WHERE business_id=? ORDER BY name').all(business).map(printerRow),settings:readPrintSettings(business),paperWidths:[...PAPER_WIDTHS]});
+      }
+      if(method==='POST'&&url.pathname==='/api/printers'){
+        if(!adminOnly()||!csrfOk(req,user))return json(res,403,{error:'Access denied.'});
+        const body=await readJson(req);
+        if(!business||business==='all'||!canAccess(user,business)||!validPrinter(body))return json(res,400,{error:'Invalid printer.'});
+        const id=randomUUID(),created=now().toISOString();
+        try{db.prepare('INSERT INTO tenant_printers VALUES(?,?,?,?,?,?,?,?)').run(id,business,body.name.trim(),body.host.trim(),body.port,body.paperWidth,body.enabled?1:0,created)}catch{return json(res,409,{error:'A printer with that name already exists.'})}
+        recordAudit(user,business,`Printer ${body.name.trim()} added`,created);
+        return json(res,201,{printer:printerRow(db.prepare('SELECT * FROM tenant_printers WHERE id=?').get(id))});
+      }
+      const printerMatch=url.pathname.match(/^\/api\/printers\/([^/]+)$/),printerTest=url.pathname.match(/^\/api\/printers\/([^/]+)\/test$/);
+      if(method==='POST'&&printerTest){
+        if(!adminOnly()||!csrfOk(req,user))return json(res,403,{error:'Access denied.'});
+        const row=db.prepare('SELECT * FROM tenant_printers WHERE id=?').get(decodeURIComponent(printerTest[1]));
+        if(!row||!canAccess(user,row.business_id))return json(res,404,{error:'Printer not found.'});
+        const tenant=db.prepare('SELECT name,location FROM tenants WHERE id=?').get(row.business_id),printer=printerRow(row);
+        try{await printerTransport(printer,renderPrintJob({type:'test',business:tenant,printer,paperWidth:row.paper_width}))}catch(error){return json(res,502,{error:error.message})}
+        recordAudit(user,row.business_id,`Test ticket sent to ${row.name}`,now().toISOString());
+        return json(res,200,{ok:true,printerName:row.name});
+      }
+      if(method==='PUT'&&printerMatch){
+        if(!adminOnly()||!csrfOk(req,user))return json(res,403,{error:'Access denied.'});
+        const row=db.prepare('SELECT * FROM tenant_printers WHERE id=?').get(decodeURIComponent(printerMatch[1]));
+        if(!row||!canAccess(user,row.business_id))return json(res,404,{error:'Printer not found.'});
+        const body=await readJson(req);
+        if(!validPrinter(body))return json(res,400,{error:'Invalid printer.'});
+        try{db.prepare('UPDATE tenant_printers SET name=?,host=?,port=?,paper_width=?,enabled=? WHERE id=?').run(body.name.trim(),body.host.trim(),body.port,body.paperWidth,body.enabled?1:0,row.id)}catch{return json(res,409,{error:'A printer with that name already exists.'})}
+        recordAudit(user,row.business_id,`Printer ${body.name.trim()} updated`,now().toISOString());
+        return json(res,200,{printer:printerRow(db.prepare('SELECT * FROM tenant_printers WHERE id=?').get(row.id))});
+      }
+      if(method==='DELETE'&&printerMatch){
+        if(!adminOnly()||!csrfOk(req,user))return json(res,403,{error:'Access denied.'});
+        const row=db.prepare('SELECT * FROM tenant_printers WHERE id=?').get(decodeURIComponent(printerMatch[1]));
+        if(!row||!canAccess(user,row.business_id))return json(res,404,{error:'Printer not found.'});
+        db.exec('BEGIN IMMEDIATE');
+        try{db.prepare('UPDATE tenant_print_settings SET receipt_printer_id=NULL WHERE receipt_printer_id=?').run(row.id);db.prepare('UPDATE tenant_print_settings SET kitchen_printer_id=NULL WHERE kitchen_printer_id=?').run(row.id);db.prepare('DELETE FROM tenant_printers WHERE id=?').run(row.id);db.exec('COMMIT')}catch(error){db.exec('ROLLBACK');throw error}
+        recordAudit(user,row.business_id,`Printer ${row.name} removed`,now().toISOString());
+        return json(res,200,{ok:true});
+      }
+      if(method==='PUT'&&url.pathname==='/api/print-settings'){
+        if(!adminOnly()||!csrfOk(req,user))return json(res,403,{error:'Access denied.'});
+        const body=await readJson(req);
+        if(!business||business==='all'||!canAccess(user,business)||!validPrintSettings(body,business))return json(res,400,{error:'Invalid print settings.'});
+        const created=now().toISOString();
+        db.prepare('INSERT INTO tenant_print_settings (business_id,receipt_printer_id,kitchen_printer_id,auto_print_receipt,auto_print_kitchen,updated_by,updated_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(business_id) DO UPDATE SET receipt_printer_id=excluded.receipt_printer_id,kitchen_printer_id=excluded.kitchen_printer_id,auto_print_receipt=excluded.auto_print_receipt,auto_print_kitchen=excluded.auto_print_kitchen,updated_by=excluded.updated_by,updated_at=excluded.updated_at').run(business,body.receiptPrinterId,body.kitchenPrinterId,body.autoPrintReceipt?1:0,body.autoPrintKitchen?1:0,user.id,created);
+        recordAudit(user,business,'Print settings updated',created);
+        return json(res,200,{settings:readPrintSettings(business)});
+      }
+      if(method==='POST'&&url.pathname==='/api/print'){
+        if(!csrfOk(req,user))return json(res,403,{error:'Invalid CSRF token.'});
+        const body=await readJson(req);
+        if(!business||business==='all'||!canAccess(user,business))return json(res,403,{error:'Business access denied.'});
+        if(!['cashier','manager','admin','superadmin','kitchen'].includes(user.role)||!PRINT_TYPES.has(body.type)||typeof body.auto!=='boolean'||!text(body.orderId,100))return json(res,400,{error:'Invalid print request.'});
+        if(user.role==='kitchen'&&body.type!=='kitchen')return json(res,403,{error:'Access denied.'});
+        const row=db.prepare('SELECT revision,data FROM app_state WHERE id=1').get(),data=migrateEnvelope(JSON.parse(row.data),now()).tenants[business],order=data.orders.find(item=>item.id===body.orderId);
+        if(!order)return json(res,404,{error:'Order not found.'});
+        const settings=readPrintSettings(business),enabled=body.type==='receipt'?settings.autoPrintReceipt:settings.autoPrintKitchen;
+        if(body.auto&&!enabled)return json(res,200,{printed:false,reason:'auto-disabled'});
+        const printerId=body.type==='receipt'?settings.receiptPrinterId:settings.kitchenPrinterId;
+        if(!printerId)return json(res,200,{printed:false,reason:'no-printer'});
+        const printer=db.prepare('SELECT * FROM tenant_printers WHERE id=? AND business_id=?').get(printerId,business);
+        if(!printer)return json(res,200,{printed:false,reason:'no-printer'});
+        if(!printer.enabled)return json(res,200,{printed:false,reason:'printer-disabled'});
+        const tenant=db.prepare('SELECT name,location FROM tenants WHERE id=?').get(business),tables=(order.tableIds||[]).map(id=>data.tables.find(table=>table.id===id)?.name||id).join(', ')||order.table||'';
+        try{await printerTransport(printerRow(printer),renderPrintJob({type:body.type,order,business:tenant,tables,paperWidth:printer.paper_width}))}catch(error){return json(res,502,{error:error.message})}
+        if(!body.auto)recordAudit(user,business,`${body.type==='receipt'?'Receipt':'Kitchen ticket'} printed for ${order.id} on ${printer.name}`,now().toISOString());
+        return json(res,200,{printed:true,printerId:printer.id,printerName:printer.name});
+      }
     }
     if(method==='GET'&&url.pathname==='/api/receipts'){
       const business=url.searchParams.get('business')||user.businessIds[0];if(!['manager','admin','superadmin'].includes(user.role))return json(res,403,{error:'Action is not allowed for this role.'});if(!canAccess(user,business))return json(res,403,{error:'Business access denied.'});const receipts=db.prepare('SELECT id,business_id businessId,name,mime,result,created_at createdAt FROM receipts WHERE business_id=? ORDER BY created_at DESC').all(business).map(row=>({...row,result:JSON.parse(row.result)}));return json(res,200,{receipts});
