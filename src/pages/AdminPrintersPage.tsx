@@ -29,6 +29,7 @@ const defaults: PrintSettings = {
   kitchenPrinterId: null,
   autoPrintReceipt: true,
   autoPrintKitchen: false,
+  receiptHeader: '',
 };
 const emptyDraft = (paperWidth: PaperWidth = 80): PrinterDraft => ({
   name: '',
@@ -91,6 +92,7 @@ export function AdminPrintersPage() {
     {
       name: label,
       location: businesses.find((item) => item.id === business)?.location,
+      header: settings.receiptHeader,
     },
     demoTables
   );
@@ -186,6 +188,7 @@ export function AdminPrintersPage() {
           kitchenPrinterId: settings.kitchenPrinterId,
           autoPrintReceipt: settings.autoPrintReceipt,
           autoPrintKitchen: settings.autoPrintKitchen,
+          receiptHeader: settings.receiptHeader,
         },
         user.csrfToken
       );
@@ -203,6 +206,7 @@ export function AdminPrintersPage() {
         {
           name: label,
           location: businesses.find((item) => item.id === business)?.location,
+          header: settings.receiptHeader,
         },
         demoTables
       );
@@ -378,6 +382,25 @@ export function AdminPrintersPage() {
               </option>
             ))}
           </Select>
+          <label className="field">
+            <span>Receipt header phrase</span>
+            <textarea
+              value={settings.receiptHeader}
+              maxLength={500}
+              rows={3}
+              placeholder="e.g. Jl. Kemang Raya No. 12, Jakarta"
+              onChange={(event) =>
+                setSettings((current) => ({
+                  ...current,
+                  receiptHeader: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <p className="hint-text">
+            Centered under the tenant name on printed and JPG receipts. Line
+            breaks are preserved.
+          </p>
           <label className="checkbox-field">
             <input
               type="checkbox"

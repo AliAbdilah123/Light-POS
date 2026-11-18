@@ -51,7 +51,7 @@ describe('receipt image rows', () => {
   it('includes tenant, order, line details, totals, payment, and change', () => {
     const rows = receiptRows(
       order,
-      { name: 'Harbor Cafe', location: 'Kemang' },
+      { name: 'Harbor Cafe', location: 'Kemang', header: 'Jl. Kemang Raya 12\nJakarta' },
       ['T01 Kemang']
     );
     expect(rows[0]).toEqual({
@@ -59,6 +59,16 @@ describe('receipt image rows', () => {
       text: 'HARBOR CAFE',
       size: 'title',
       bold: true,
+    });
+    expect(rows).toContainEqual({
+      kind: 'center',
+      text: 'Jl. Kemang Raya 12',
+      size: 'small',
+    });
+    expect(rows).toContainEqual({
+      kind: 'center',
+      text: 'Jakarta',
+      size: 'small',
     });
     expect(rows).toContainEqual({
       kind: 'text',

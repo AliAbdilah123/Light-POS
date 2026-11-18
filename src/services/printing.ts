@@ -17,6 +17,7 @@ export type PrintSettings = {
   kitchenPrinterId: string | null;
   autoPrintReceipt: boolean;
   autoPrintKitchen: boolean;
+  receiptHeader: string;
   updatedAt?: string | null;
 };
 export type PrintResult = {
@@ -46,6 +47,11 @@ const json = (body: unknown, csrfToken: string): RequestInit => ({
 export const getPrinting = (business: string) =>
   request<{ printers: Printer[]; settings: PrintSettings; paperWidths: number[] }>(
     `/printers?business=${encodeURIComponent(business)}`
+  );
+
+export const getReceiptHeader = (business: string) =>
+  request<{ header: string }>(
+    `/receipt-header?business=${encodeURIComponent(business)}`
   );
 
 export const createPrinter = (

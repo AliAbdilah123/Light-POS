@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Armchair, CircleDollarSign, Clock3, Search, Table2 } from 'lucide-react';
 import { idr, localDateTime, nextStatus, type Order } from '../domain';
@@ -10,7 +10,7 @@ import { Input } from '../components/ui/input';
 import { NativeSelect as Select } from '../components/ui/native-select';
 import { Metric, Modal, PageHead, SectionTitle } from '../components/molecules';
 import { StateBoundary } from '../components/DemoState';
-import { printOrder, printReason } from '../services/printing';
+import { printOrder, printReason, getReceiptHeader } from '../services/printing';
 import { downloadReceiptJpg } from '../services/receiptImage';
 
 export function OrdersPage() {
@@ -24,7 +24,18 @@ export function OrdersPage() {
   const [tendered, setTendered] = useState('');
   const [error, setError] = useState('');
   const [printNotice, setPrintNotice] = useState('');
+  const [receiptHeader, setReceiptHeader] = useState('');
   const order = s.data.orders.find((o) => o.id === selected);
+  useEffect(() => {
+    const target = order?.businessId || s.business;
+    if (!target || target === 'all') {
+      setReceiptHeader('');
+      return;
+    }
+    getReceiptHeader(target)
+      .then((result) => setReceiptHeader(result.header))
+      .catch(() => setReceiptHeader(''));
+  }, [order?.businessId, s.business]);
   const rows = useMemo(
     () =>
       s.data.orders.filter(
@@ -97,7 +108,7 @@ export function OrdersPage() {
     try {
       downloadReceiptJpg(
         order,
-        { name: tenant?.name || order.businessId, location: tenant?.location },
+        { name: tenant?.name || order.businessId, location: tenant?.location, header: receiptHeader },
         tables
       );
       setPrintNotice('Receipt JPG downloaded.');

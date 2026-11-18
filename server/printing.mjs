@@ -83,10 +83,13 @@ const wrappedDetails = (line, width) =>
     wrap(detail, width - 2).map((text) => `  ${text}`)
   );
 
-export function renderReceipt({ order, business, tables, paperWidth = 80 }) {
+export function renderReceipt({ order, business, tables, paperWidth = 80, header = '' }) {
   const width = columns(paperWidth);
   const out = [INIT, CENTER, DOUBLE, clean(business.name.toUpperCase()), NORMAL];
   if (business.location) out.push(clean(business.location));
+  if (header)
+    for (const line of String(header).split('\n'))
+      for (const text of wrap(line, width)) out.push(clean(text));
   out.push(LEFT, rule(width));
   out.push(`${BOLD_ON}Receipt ${clean(order.id)}${BOLD_OFF}`);
   out.push(`${dateTime(order.createdAt)}  ${clean(order.service)}`);
@@ -146,9 +149,9 @@ export function renderTestTicket({ business, printer, paperWidth = 80 }) {
   return Buffer.from(out.join('\n'), 'latin1');
 }
 
-export function renderPrintJob({ type, order, business, tables, paperWidth, printer }) {
+export function renderPrintJob({ type, order, business, tables, paperWidth, printer, header }) {
   if (type === 'receipt')
-    return renderReceipt({ order, business, tables, paperWidth });
+    return renderReceipt({ order, business, tables, paperWidth, header });
   if (type === 'kitchen')
     return renderKitchenTicket({ order, business, tables, paperWidth });
   if (type === 'test')

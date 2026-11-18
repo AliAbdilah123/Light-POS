@@ -1,6 +1,6 @@
 import { idr, localDateTime, type Order } from '../domain';
 
-export type ReceiptBusiness = { name: string; location?: string };
+export type ReceiptBusiness = { name: string; location?: string; header?: string };
 export type ReceiptRow =
   | { kind: 'center'; text: string; size: 'title' | 'body' | 'small'; bold?: boolean }
   | { kind: 'text'; text: string; size: 'body' | 'small'; indent?: boolean }
@@ -23,6 +23,10 @@ export function receiptRows(
   ];
   if (business.location)
     rows.push({ kind: 'center', text: business.location, size: 'small' });
+  if (business.header)
+    for (const line of business.header.split('\n'))
+      if (line.trim())
+        rows.push({ kind: 'center', text: line.trim(), size: 'small' });
   rows.push({ kind: 'rule' });
   rows.push({
     kind: 'pair',

@@ -24,7 +24,7 @@ import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Modal, PageHead, SectionTitle } from '../components/molecules';
-import { printOrder, printReason } from '../services/printing';
+import { printOrder, printReason, getReceiptHeader } from '../services/printing';
 import { downloadReceiptJpg } from '../services/receiptImage';
 
 type CatalogItem = MenuItem & MenuVersion & { bundleError?: string };
@@ -53,6 +53,7 @@ export function OrderEntry() {
     configured: boolean;
     updatedAt?: string;
   }>({ configured: false });
+  const [receiptHeader, setReceiptHeader] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [couponError, setCouponError] = useState('');
   const timer = useRef<number>();
@@ -93,6 +94,7 @@ export function OrderEntry() {
   useEffect(() => {
     if (s.business === 'all') {
       setPaymentQr({ configured: false });
+      setReceiptHeader('');
       return;
     }
     fetch(`${API}/payment-qr?business=${encodeURIComponent(s.business)}`, {
@@ -101,6 +103,9 @@ export function OrderEntry() {
       .then((response) => response.json())
       .then(setPaymentQr)
       .catch(() => setPaymentQr({ configured: false }));
+    getReceiptHeader(s.business)
+      .then((result) => setReceiptHeader(result.header))
+      .catch(() => setReceiptHeader(''));
   }, [s.business]);
 
   const orderTypes = s.data.orderTypes
@@ -254,7 +259,7 @@ export function OrderEntry() {
     try {
       downloadReceiptJpg(
         receipt,
-        { name: tenant?.name || s.business, location: tenant?.location },
+        { name: tenant?.name || s.business, location: tenant?.location, header: receiptHeader },
         tables
       );
       setPrintNotice('Receipt JPG downloaded.');
