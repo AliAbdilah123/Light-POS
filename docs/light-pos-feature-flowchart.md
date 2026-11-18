@@ -22,7 +22,7 @@ flowchart TB
   DI --> SCOPE
 
   SCOPE --> CAP["Resolve capability profile<br/>and menu scope"]
-  CAP --> SHELL["Role-scoped shell<br/>navigation · messages · theme · demo states"]
+  CAP --> SHELL["Role-scoped shell<br/>navigation · messages · theme"]
 
   SHELL --> CASHIER["Cashier workspace<br/>• Dashboard and shift<br/>• New order<br/>• Shift and requests<br/>• Notes"]
   SHELL --> SERVICE["Service board<br/>• Orders<br/>• Seats"]
@@ -30,7 +30,7 @@ flowchart TB
   SHELL --> ADMIN["Admin catalogue and operations<br/>• Portfolio and insights<br/>• Menu catalog<br/>• Menu lab and experiments<br/>• Order types · tables · coupons<br/>• Staff and shifts<br/>• Targets and opening hours<br/>• SOP templates<br/>• Payment QR<br/>• Printers and printing<br/>• Users and roles<br/>• Tenants"]
   SHELL --> KITCHEN["Kitchen and display<br/>• Kitchen queue<br/>• Availability<br/>• Display"]
 
-  AXES["Permutation axes<br/>role × tenant scope<br/>role × business mode<br/>role × capability profile<br/>role × demo state<br/>role × viewport<br/>role × theme<br/>role × order status<br/>role × payment method<br/>role × print route<br/>role × menu scope"]
+  AXES["Permutation axes<br/>role × tenant scope<br/>role × business mode<br/>role × capability profile<br/>role × viewport<br/>role × theme<br/>role × order status<br/>role × payment method<br/>role × print route<br/>role × menu scope"]
   AXES -.-> ROLE
   AXES -.-> SHELL
 ```

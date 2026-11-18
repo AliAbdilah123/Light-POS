@@ -66,12 +66,10 @@
 - Mark one message read, close/reopen, and verify it stays read.
 - Confirm tenant-specific messages do not leak across business selection.
 
-## 6. Theme, accessibility, and state simulation
+## 6. Theme, accessibility, and viewport coverage
 
 1. Select **Switch to light theme** / **Switch to dark theme**; refresh and confirm persistence.
 2. Use keyboard-only navigation: verify visible focus and logical order.
 3. Use **Skip to main content** and confirm focus reaches the main region.
-4. In **Demo state**, test **Loading**, **Empty**, and **Error**; verify skeleton, empty explanation, and error/retry UI respectively.
-5. Return to **Ready** and confirm normal content.
-6. Verify availability and order states include words/symbols, not color alone.
-7. Check common widths 320, 375, 414, 768, and 1024 px for reachable controls and no page overflow.
+4. Verify availability and order states include words/symbols, not color alone.
+5. Check common widths 320, 375, 414, 768, and 1024 px for reachable controls and no page overflow.

@@ -4,6 +4,7 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Input } from '../components/ui/input';
+import { NumberInput } from '../components/ui/number-input';
 import { NativeSelect as Select } from '../components/ui/native-select';
 import { FormActions, Modal, PageHead } from '../components/molecules';
 import {
@@ -231,11 +232,10 @@ export function AdminMenuPage() {
               name="category"
               defaultValue={current?.category}
             />
-            <Input
+            <NumberInput
               label="Price"
               name="price"
-              type="number"
-              min="1"
+              min={1}
               defaultValue={current?.price}
             />
             {kind === 'item' ? (
@@ -253,19 +253,18 @@ export function AdminMenuPage() {
                         )
                       }
                     />
-                    <Input
+                    <NumberInput
                       label={`Ingredient ${i + 1} quantity`}
-                      type="number"
-                      value={x.quantity || ''}
-                      onChange={(e) =>
+                      decimals={2}
+                      value={x.quantity ?? ''}
+                      onValueChange={(quantity) =>
                         setIngredients((a) =>
                           a.map((y, j) =>
                             j === i
                               ? {
                                   ...y,
-                                  quantity: e.target.value
-                                    ? Number(e.target.value)
-                                    : undefined,
+                                  quantity:
+                                    quantity === '' ? undefined : quantity,
                                 }
                               : y
                           )
@@ -366,14 +365,13 @@ export function AdminMenuPage() {
                             )
                           }
                         />
-                        <Input
+                        <NumberInput
                           label={`${
                             g.name || `Variation group ${i + 1}`
                           } option ${k + 1} price`}
-                          type="number"
-                          min="0"
+                          min={0}
                           value={o.priceDelta}
-                          onChange={(e) =>
+                          onValueChange={(priceDelta) =>
                             setVariations((a) =>
                               a.map((x, j) =>
                                 j === i
@@ -383,7 +381,10 @@ export function AdminMenuPage() {
                                         l === k
                                           ? {
                                               ...y,
-                                              priceDelta: Number(e.target.value),
+                                              priceDelta:
+                                                priceDelta === ''
+                                                  ? 0
+                                                  : priceDelta,
                                             }
                                           : y
                                       ),
@@ -491,17 +492,18 @@ export function AdminMenuPage() {
                         </option>
                       ))}
                     </Select>
-                    <Input
+                    <NumberInput
                       label={`Component ${i + 1} quantity`}
-                      type="number"
-                      min="1"
-                      step="1"
+                      min={1}
                       value={x.quantity}
-                      onChange={(e) =>
+                      onValueChange={(quantity) =>
                         setComponents((a) =>
                           a.map((y, j) =>
                             j === i
-                              ? { ...y, quantity: Number(e.target.value) }
+                              ? {
+                                  ...y,
+                                  quantity: quantity === '' ? 1 : quantity,
+                                }
                               : y
                           )
                         )

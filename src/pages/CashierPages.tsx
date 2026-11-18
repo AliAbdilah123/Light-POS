@@ -13,6 +13,7 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Input } from '../components/ui/input';
+import { NumberInput } from '../components/ui/number-input';
 import { NativeSelect as Select } from '../components/ui/native-select';
 import {
   FormActions,
@@ -22,7 +23,6 @@ import {
   SectionTitle,
   StatusRow,
 } from '../components/molecules';
-import { StateBoundary } from '../components/DemoState';
 
 export function CashierDashboard() {
   const s = useStore();
@@ -123,180 +123,174 @@ export function CashierDashboard() {
         title={`Welcome, ${s.user.name}`}
         description="Your shift, service pulse, and team updates in one place."
       />
-      <StateBoundary>
-        <div className="metric-grid">
-          <Metric
-            label="Orders served by you"
-            value={String(mineToday.length)}
-            delta={`${mine.length} on record · ${open} open in business`}
-            icon={<ReceiptText />}
-          />
-          <Metric
-            label="Shift cash collected"
-            value={idr(shiftCash.reduce((sum, o) => sum + o.total, 0))}
-            help={s.activeShift ? `Expected drawer ${idr(expected)}` : 'No open shift'}
-            icon={<WalletCards />}
-          />
-          <Metric
-            label="Scheduled shifts"
-            value={String(todaysShifts.length)}
-            delta="Today in this business"
-            icon={<CalendarDays />}
-          />
-        </div>
-        <div className="split wide-left">
-          <Card>
-            <SectionTitle
-              title="Cash drawer"
-              meta={
-                s.activeShift
-                  ? `Opened ${localDateTime(s.activeShift.openedAt)}`
-                  : 'No open shift'
-              }
-            />
-            {error && (
-              <p className="alert bad" role="alert">
-                {error}
-              </p>
-            )}
-            {s.activeShift ? (
-              <>
-                <div className="metric-grid shift-metrics">
-                  <Metric
-                    label="Opening cash"
-                    value={idr(s.activeShift.openingCash)}
-                  />
-                  <Metric
-                    label="Cash sales"
-                    value={idr(shiftCash.reduce((sum, o) => sum + o.total, 0))}
-                    delta={`${shiftCash.length} cash orders in this shift`}
-                  />
-                  <Metric label="Expected in drawer" value={idr(expected)} />
-                </div>
-                {!closing ? (
-                  <div className="form-actions">
-                    <Button variant="primary" onClick={() => setClosing(true)}>
-                      Close shift
-                    </Button>
-                  </div>
-                ) : (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      closeShift();
-                    }}
-                  >
-                    <Input
-                      label="Counted closing cash"
-                      type="number"
-                      min="0"
-                      inputMode="numeric"
-                      value={counted}
-                      onChange={(e) => {
-                        setCounted(e.target.value);
-                        setError('');
-                      }}
-                    />
-                    <div className="formula">
-                      <span>Variance</span>
-                      <strong>
-                        {idr(Math.round(Number(counted || 0) - expected))}
-                      </strong>
-                    </div>
-                    <div className="form-actions">
-                      <Button type="button" onClick={() => setClosing(false)}>
-                        Keep shift open
-                      </Button>
-                      <Button variant="primary" type="submit">
-                        Confirm close
-                      </Button>
-                    </div>
-                  </form>
-                )}
-              </>
-            ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  startShift();
-                }}
-              >
-                <p className="muted">
-                  Open a shift before service so cash sales reconcile to a
-                  drawer. Your name is recorded on every order you take.
-                </p>
-                <Input
-                  label="Opening cash counted"
-                  type="number"
-                  min="0"
-                  inputMode="numeric"
-                  value={opening}
-                  onChange={(e) => {
-                    setOpening(e.target.value);
-                    setError('');
-                  }}
-                />
-                <Button variant="primary" type="submit">
-                  Open shift
-                </Button>
-              </form>
-            )}
-          </Card>
-          <Card>
-            <SectionTitle
-              title="Manager messages"
-              meta={`${
-                s.data.messages.filter(
-                  (m) => !s.data.messagesRead.includes(m.id)
-                ).length
-              } unread`}
-            />
-            {s.data.messages.length ? (
-              s.data.messages.map((m) => (
-                <button
-                  className={`message ${
-                    s.data.messagesRead.includes(m.id) ? 'read' : ''
-                  }`}
-                  key={m.id}
-                  onClick={() =>
-                    s.update((d) => ({
-                      ...d,
-                      messagesRead: [...new Set([...d.messagesRead, m.id])],
-                    }))
-                  }
-                >
-                  <Mail />
-                  <div>
-                    <strong>{m.from}</strong>
-                    <p>{m.text}</p>
-                    <small>{m.time}</small>
-                  </div>
-                </button>
-              ))
-            ) : (
-              <p className="muted">No messages.</p>
-            )}
-          </Card>
-        </div>
+      <div className="metric-grid">
+        <Metric
+          label="Orders served by you"
+          value={String(mineToday.length)}
+          delta={`${mine.length} on record · ${open} open in business`}
+          icon={<ReceiptText />}
+        />
+        <Metric
+          label="Shift cash collected"
+          value={idr(shiftCash.reduce((sum, o) => sum + o.total, 0))}
+          help={s.activeShift ? `Expected drawer ${idr(expected)}` : 'No open shift'}
+          icon={<WalletCards />}
+        />
+        <Metric
+          label="Scheduled shifts"
+          value={String(todaysShifts.length)}
+          delta="Today in this business"
+          icon={<CalendarDays />}
+        />
+      </div>
+      <div className="split wide-left">
         <Card>
           <SectionTitle
-            title="Active & upcoming shifts"
-            meta={`${todaysShifts.length} today`}
+            title="Cash drawer"
+            meta={
+              s.activeShift
+                ? `Opened ${localDateTime(s.activeShift.openedAt)}`
+                : 'No open shift'
+            }
           />
-          {todaysShifts.length ? (
-            todaysShifts.map((sh) => (
-              <StatusRow
-                key={sh.id}
-                title={`${sh.start}–${sh.end}`}
-                meta={`${sh.location} · ${sh.staff}`}
-                status={shiftState(sh)}
-              />
-            ))
+          {error && (
+            <p className="alert bad" role="alert">
+              {error}
+            </p>
+          )}
+          {s.activeShift ? (
+            <>
+              <div className="metric-grid shift-metrics">
+                <Metric
+                  label="Opening cash"
+                  value={idr(s.activeShift.openingCash)}
+                />
+                <Metric
+                  label="Cash sales"
+                  value={idr(shiftCash.reduce((sum, o) => sum + o.total, 0))}
+                  delta={`${shiftCash.length} cash orders in this shift`}
+                />
+                <Metric label="Expected in drawer" value={idr(expected)} />
+              </div>
+              {!closing ? (
+                <div className="form-actions">
+                  <Button variant="primary" onClick={() => setClosing(true)}>
+                    Close shift
+                  </Button>
+                </div>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    closeShift();
+                  }}
+                >
+                  <NumberInput
+                    label="Counted closing cash"
+                    min={0}
+                    value={counted}
+                    onValueChange={(next) => {
+                      setCounted(next === '' ? '' : String(next));
+                      setError('');
+                    }}
+                  />
+                  <div className="formula">
+                    <span>Variance</span>
+                    <strong>
+                      {idr(Math.round(Number(counted || 0) - expected))}
+                    </strong>
+                  </div>
+                  <div className="form-actions">
+                    <Button type="button" onClick={() => setClosing(false)}>
+                      Keep shift open
+                    </Button>
+                    <Button variant="primary" type="submit">
+                      Confirm close
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </>
           ) : (
-            <p className="muted">No shifts scheduled for today.</p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                startShift();
+              }}
+            >
+              <p className="muted">
+                Open a shift before service so cash sales reconcile to a
+                drawer. Your name is recorded on every order you take.
+              </p>
+              <NumberInput
+                label="Opening cash counted"
+                min={0}
+                value={opening}
+                onValueChange={(next) => {
+                  setOpening(next === '' ? '' : String(next));
+                  setError('');
+                }}
+              />
+              <Button variant="primary" type="submit">
+                Open shift
+              </Button>
+            </form>
           )}
         </Card>
-      </StateBoundary>
+        <Card>
+          <SectionTitle
+            title="Manager messages"
+            meta={`${
+              s.data.messages.filter(
+                (m) => !s.data.messagesRead.includes(m.id)
+              ).length
+            } unread`}
+          />
+          {s.data.messages.length ? (
+            s.data.messages.map((m) => (
+              <button
+                className={`message ${
+                  s.data.messagesRead.includes(m.id) ? 'read' : ''
+                }`}
+                key={m.id}
+                onClick={() =>
+                  s.update((d) => ({
+                    ...d,
+                    messagesRead: [...new Set([...d.messagesRead, m.id])],
+                  }))
+                }
+              >
+                <Mail />
+                <div>
+                  <strong>{m.from}</strong>
+                  <p>{m.text}</p>
+                  <small>{m.time}</small>
+                </div>
+              </button>
+            ))
+          ) : (
+            <p className="muted">No messages.</p>
+          )}
+        </Card>
+      </div>
+      <Card>
+        <SectionTitle
+          title="Active & upcoming shifts"
+          meta={`${todaysShifts.length} today`}
+        />
+        {todaysShifts.length ? (
+          todaysShifts.map((sh) => (
+            <StatusRow
+              key={sh.id}
+              title={`${sh.start}–${sh.end}`}
+              meta={`${sh.location} · ${sh.staff}`}
+              status={shiftState(sh)}
+            />
+          ))
+        ) : (
+          <p className="muted">No shifts scheduled for today.</p>
+        )}
+      </Card>
     </>
   );
 }
@@ -352,112 +346,110 @@ export function NotesPage() {
           </Button>
         }
       />
-      <StateBoundary>
-        {!s.writable && (
-          <p className="alert" role="status">
-            Select one business to add or edit its notes.
-          </p>
-        )}
-        {open && (
-          <Modal title="Add note" onClose={() => setOpen(false)}>
-            <form onSubmit={add}>
-              <Input
-                label="Note"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="What should the next shift know?"
-              />
-              <FormActions onCancel={() => setOpen(false)} submit="Add note" />
-            </form>
-          </Modal>
-        )}
-        {editing && (
-          <Modal
-            title="Edit note"
-            onClose={() => {
-              setEditing(undefined);
-              setDraft('');
+      {!s.writable && (
+        <p className="alert" role="status">
+          Select one business to add or edit its notes.
+        </p>
+      )}
+      {open && (
+        <Modal title="Add note" onClose={() => setOpen(false)}>
+          <form onSubmit={add}>
+            <Input
+              label="Note"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="What should the next shift know?"
+            />
+            <FormActions onCancel={() => setOpen(false)} submit="Add note" />
+          </form>
+        </Modal>
+      )}
+      {editing && (
+        <Modal
+          title="Edit note"
+          onClose={() => {
+            setEditing(undefined);
+            setDraft('');
+          }}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              saveEdit();
             }}
           >
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                saveEdit();
+            <label className="field">
+              <span>Note</span>
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={4}
+              />
+            </label>
+            <FormActions
+              onCancel={() => {
+                setEditing(undefined);
+                setDraft('');
+              }}
+              submit="Save note"
+            />
+          </form>
+        </Modal>
+      )}
+      {deleting && (
+        <Modal
+          title="Delete this note?"
+          onClose={() => setDeleting(undefined)}
+        >
+          <p>
+            “{deleting.text}” will be removed for everyone in this business.
+          </p>
+          <div className="form-actions">
+            <Button onClick={() => setDeleting(undefined)}>Cancel</Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                s.update((d) => ({
+                  ...d,
+                  notes: d.notes.filter((x) => x.id !== deleting.id),
+                }));
+                setDeleting(undefined);
               }}
             >
-              <label className="field">
-                <span>Note</span>
-                <textarea
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  rows={4}
-                />
-              </label>
-              <FormActions
-                onCancel={() => {
-                  setEditing(undefined);
-                  setDraft('');
-                }}
-                submit="Save note"
-              />
-            </form>
-          </Modal>
-        )}
-        {deleting && (
-          <Modal
-            title="Delete this note?"
-            onClose={() => setDeleting(undefined)}
-          >
-            <p>
-              “{deleting.text}” will be removed for everyone in this business.
-            </p>
-            <div className="form-actions">
-              <Button onClick={() => setDeleting(undefined)}>Cancel</Button>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  s.update((d) => ({
-                    ...d,
-                    notes: d.notes.filter((x) => x.id !== deleting.id),
-                  }));
-                  setDeleting(undefined);
-                }}
-              >
-                Delete note
-              </Button>
-            </div>
-          </Modal>
-        )}
-        {s.data.notes.length ? (
-          <div className="note-grid">
-            {s.data.notes.map((n) => (
-              <Card key={n.id}>
-                <Badge tone="info">{localDate(n.date)}</Badge>
-                <p>{n.text}</p>
-                <div className="card-actions">
-                  <Button
-                    onClick={() => {
-                      setEditing(n);
-                      setDraft(n.text);
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <Button variant="danger" onClick={() => setDeleting(n)}>
-                    Delete
-                  </Button>
-                </div>
-              </Card>
-            ))}
+              Delete note
+            </Button>
           </div>
-        ) : (
-          <div className="empty">
-            <span aria-hidden="true">◇</span>
-            <h3>No notes yet</h3>
-            <p>Add the first handoff note for this business.</p>
-          </div>
-        )}
-      </StateBoundary>
+        </Modal>
+      )}
+      {s.data.notes.length ? (
+        <div className="note-grid">
+          {s.data.notes.map((n) => (
+            <Card key={n.id}>
+              <Badge tone="info">{localDate(n.date)}</Badge>
+              <p>{n.text}</p>
+              <div className="card-actions">
+                <Button
+                  onClick={() => {
+                    setEditing(n);
+                    setDraft(n.text);
+                  }}
+                >
+                  Edit
+                </Button>
+                <Button variant="danger" onClick={() => setDeleting(n)}>
+                  Delete
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="empty">
+          <span aria-hidden="true">◇</span>
+          <h3>No notes yet</h3>
+          <p>Add the first handoff note for this business.</p>
+        </div>
+      )}
     </>
   );
 }

@@ -6,10 +6,9 @@ import { useStore } from '../store';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
-import { Input } from '../components/ui/input';
+import { NumberInput } from '../components/ui/number-input';
 import { NativeSelect as Select } from '../components/ui/native-select';
 import { Metric, Modal, PageHead, SectionTitle } from '../components/molecules';
-import { StateBoundary } from '../components/DemoState';
 import { printOrder, printReason, getReceiptHeader } from '../services/printing';
 import { downloadReceiptJpg } from '../services/receiptImage';
 
@@ -228,72 +227,70 @@ export function OrdersPage() {
           ))}
         </Select>
       </div>
-      <StateBoundary>
-        <Card>
-          <div className="table-list">
-            <div className="table-head">
-              <span>Order</span>
-              <span>Service</span>
-              <span>Status</span>
-              <span>Total</span>
-              <span>Action</span>
-            </div>
-            {rows.map((o) => {
-              const tableLabel =
-                o.tableIds
-                  ?.map((id) => s.data.tables.find((t) => t.id === id)?.name || id)
-                  .join(', ') || o.table;
-              return (
-                <button
-                  className={`table-row ${o.status === 'Voided' ? 'voided' : ''}`}
-                  key={o.id}
-                  onClick={() => setSelected(o.id)}
-                >
-                  <span>
-                    <strong>{o.id}</strong>
-                    <small>
-                      {localDateTime(o.createdAt)} ·{' '}
-                      {o.lines.reduce((n, l) => n + l.qty, 0)}{' '}
-                      {o.lines.reduce((n, l) => n + l.qty, 0) === 1
-                        ? 'item'
-                        : 'items'}
-                    </small>
-                  </span>
-                  <span>
-                    {o.service}
-                    {tableLabel && ` · ${tableLabel}`}
-                  </span>
-                  <Badge
-                    tone={
-                      o.status === 'Completed'
-                        ? 'good'
-                        : o.status === 'Ready'
-                        ? 'info'
-                        : o.status === 'Voided'
-                        ? 'bad'
-                        : 'warn'
-                    }
-                  >
-                    {o.status}
-                  </Badge>
-                  <span>
-                    <b>{idr(o.total)}</b>
-                    <small>{o.payment || 'Unpaid'}</small>
-                  </span>
-                  <span>View →</span>
-                </button>
-              );
-            })}
-            {!rows.length && (
-              <div className="empty">
-                <span aria-hidden="true">◇</span>
-                <h3>No orders match</h3>
-                <p>Try a different search or status filter.</p>
-              </div>
-            )}
+      <Card>
+        <div className="table-list">
+          <div className="table-head">
+            <span>Order</span>
+            <span>Service</span>
+            <span>Status</span>
+            <span>Total</span>
+            <span>Action</span>
           </div>
-        </Card>
-      </StateBoundary>
+          {rows.map((o) => {
+            const tableLabel =
+              o.tableIds
+                ?.map((id) => s.data.tables.find((t) => t.id === id)?.name || id)
+                .join(', ') || o.table;
+            return (
+              <button
+                className={`table-row ${o.status === 'Voided' ? 'voided' : ''}`}
+                key={o.id}
+                onClick={() => setSelected(o.id)}
+              >
+                <span>
+                  <strong>{o.id}</strong>
+                  <small>
+                    {localDateTime(o.createdAt)} ·{' '}
+                    {o.lines.reduce((n, l) => n + l.qty, 0)}{' '}
+                    {o.lines.reduce((n, l) => n + l.qty, 0) === 1
+                      ? 'item'
+                      : 'items'}
+                  </small>
+                </span>
+                <span>
+                  {o.service}
+                  {tableLabel && ` · ${tableLabel}`}
+                </span>
+                <Badge
+                  tone={
+                    o.status === 'Completed'
+                      ? 'good'
+                      : o.status === 'Ready'
+                      ? 'info'
+                      : o.status === 'Voided'
+                      ? 'bad'
+                      : 'warn'
+                  }
+                >
+                  {o.status}
+                </Badge>
+                <span>
+                  <b>{idr(o.total)}</b>
+                  <small>{o.payment || 'Unpaid'}</small>
+                </span>
+                <span>View →</span>
+              </button>
+            );
+          })}
+          {!rows.length && (
+            <div className="empty">
+              <span aria-hidden="true">◇</span>
+              <h3>No orders match</h3>
+              <p>Try a different search or status filter.</p>
+            </div>
+          )}
+        </div>
+      </Card>
       {order && (
         <Modal title={`Order ${order.id}`} onClose={close}>
           <div className="order-detail">
@@ -418,14 +415,12 @@ export function OrdersPage() {
                   </button>
                 </div>
                 {method !== 'QRIS' && (
-                  <Input
+                  <NumberInput
                     label="Cash received"
-                    type="number"
-                    min="0"
-                    inputMode="numeric"
+                    min={0}
                     value={tendered}
-                    onChange={(e) => {
-                      setTendered(e.target.value);
+                    onValueChange={(next) => {
+                      setTendered(next === '' ? '' : String(next));
                       setError('');
                     }}
                   />

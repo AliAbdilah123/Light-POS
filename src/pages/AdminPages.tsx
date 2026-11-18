@@ -25,6 +25,7 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Input } from '../components/ui/input';
+import { NumberInput } from '../components/ui/number-input';
 import { Progress } from '../components/ui/progress';
 import { NativeSelect as Select } from '../components/ui/native-select';
 import {
@@ -503,7 +504,7 @@ export function CouponsPage() {
               <option value="percent">Percentage</option>
               <option value="fixed">Fixed IDR</option>
             </Select>
-            <Input label="Value" name="value" type="number" min="1" required />
+            <NumberInput label="Value" name="value" min={1} required />
             <Select label="Reason" name="reason">
               <option value="">Select reason</option>
               <option>Review incentive</option>
@@ -682,14 +683,15 @@ export function AdminOperations() {
                   </small>
                 </div>
                 <div className="target-edit">
-                  <Input
+                  <NumberInput
                     label="Target IDR"
-                    type="number"
-                    inputMode="numeric"
-                    min="0"
+                    min={0}
                     value={draft}
-                    onChange={(e) =>
-                      setTargetDraft((d) => ({ ...d, [b.id]: e.target.value }))
+                    onValueChange={(next) =>
+                      setTargetDraft((d) => ({
+                        ...d,
+                        [b.id]: next === '' ? '' : String(next),
+                      }))
                     }
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -1391,12 +1393,10 @@ export function TablesPage() {
               defaultValue={edit?.name}
               required
             />
-            <Input
+            <NumberInput
               label={edit ? 'Edit capacity' : 'Capacity'}
               name="capacity"
-              type="number"
-              min="1"
-              step="1"
+              min={1}
               defaultValue={edit?.capacity}
               required
             />

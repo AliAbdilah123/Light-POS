@@ -23,6 +23,7 @@ import { EmptyState } from '../components/ui/empty-state';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Input } from '../components/ui/input';
+import { NumberInput } from '../components/ui/number-input';
 import { Modal, PageHead, SectionTitle } from '../components/molecules';
 import { printOrder, printReason, getReceiptHeader } from '../services/printing';
 import { downloadReceiptJpg } from '../services/receiptImage';
@@ -973,14 +974,12 @@ export function OrderEntry() {
             </p>
           )}
           <div className="cash-payment">
-            <Input
+            <NumberInput
               label="Cash received"
-              type="number"
-              inputMode="numeric"
-              min="0"
+              min={0}
               value={tendered}
-              onChange={(e) => {
-                setTendered(e.target.value);
+              onValueChange={(next) => {
+                setTendered(next === '' ? '' : String(next));
                 setPayError('');
               }}
             />

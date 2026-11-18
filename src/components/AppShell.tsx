@@ -13,6 +13,8 @@ import {
   Menu as MenuIcon,
   Moon,
   PackageOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
   Printer as PrinterIcon,
   ReceiptText,
   Settings2,
@@ -28,7 +30,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useStore, type Session, type Tenant } from '../store';
 import { Button } from './ui/button';
-import { dashboardPath, type DemoMode, type Role } from '../domain';
+import { dashboardPath, type Role } from '../domain';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
 
 type NavEntry = string | readonly [string, string, LucideIcon];
@@ -194,6 +196,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     logout,
   } = useStore();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem('pos-sidebar-collapsed') === '1'
+  );
   const [messagesOpen, setMessagesOpen] = useState(false);
   const menuTrigger = useRef<HTMLButtonElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -229,6 +234,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [messagesOpen]);
 
   useEffect(() => {
+    localStorage.setItem('pos-sidebar-collapsed', collapsed ? '1' : '0');
+  }, [collapsed]);
+
+  useEffect(() => {
     if (!window.matchMedia) return;
     const wide = window.matchMedia('(min-width: 901px)');
     const reset = (event: MediaQueryListEvent) => {
@@ -247,7 +256,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${collapsed ? ' collapsed' : ''}`}>
       <a className="skip" href="#main">
         Skip to main content
       </a>
@@ -394,6 +403,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           business={business}
           setBusiness={setBusiness}
           tenants={allowed}
+          collapsed={collapsed}
+          onToggleCollapse={() => setCollapsed((value) => !value)}
         />
       </aside>
       <main id="main" tabIndex={-1}>
@@ -415,6 +426,8 @@ function Navigation({
   setBusiness,
   tenants,
   onNavigate,
+  collapsed = false,
+  onToggleCollapse,
 }: {
   idPrefix: string;
   role: Role;
@@ -427,8 +440,9 @@ function Navigation({
   setBusiness: (business: string) => void;
   tenants: Tenant[];
   onNavigate?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
-  const { demo, setDemo } = useStore();
   const entries: readonly NavEntry[] = nav[navRole];
   const extras: readonly NavEntry[] = global
     ? [['Tenants', '/admin/tenants', Building2] as const]
@@ -444,6 +458,23 @@ function Navigation({
             <small>Sample workspace</small>
           </div>
         </NavLink>
+        {onToggleCollapse && (
+          <button
+            type="button"
+            className="icon-button sidebar-toggle"
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!collapsed}
+            aria-controls="app-navigation"
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            onClick={onToggleCollapse}
+          >
+            {collapsed ? (
+              <PanelLeftOpen aria-hidden="true" />
+            ) : (
+              <PanelLeftClose aria-hidden="true" />
+            )}
+          </button>
+        )}
       </div>
       <section className="sidebar-context" aria-label="Account and tenant">
         <div className="sidebar-user">
@@ -475,6 +506,7 @@ function Navigation({
               key={to}
               to={to}
               onClick={onNavigate}
+              title={collapsed ? name : undefined}
               className={({ isActive }) =>
                 isActive || (to === '/orders' && pathname.startsWith('/orders'))
                   ? 'active'
@@ -488,22 +520,9 @@ function Navigation({
         })}
       </nav>
       <div className="sidebar-foot">
-        <label className="demo-select">
-          <span>Demo state</span>
-          <select
-            aria-label="Demo data state"
-            value={demo}
-            onChange={(event) => setDemo(event.target.value as DemoMode)}
-          >
-            <option value="ready">Ready</option>
-            <option value="loading">Loading</option>
-            <option value="empty">Empty</option>
-            <option value="error">Error</option>
-          </select>
-        </label>
         <Button className="sidebar-logout" onClick={() => void logout()}>
           <LogOut aria-hidden="true" />
-          Sign out
+          <span>Sign out</span>
         </Button>
         <span>
           <span className="live-dot" /> Server session · synced

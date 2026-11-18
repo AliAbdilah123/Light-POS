@@ -7,7 +7,6 @@ This directory documents the implemented product by user-visible workflow. It is
 - Public app: <https://dev-light-pos.ahsanworks.com/>
 - Use the development accounts listed in [`../TEST_CREDENTIALS.md`](../TEST_CREDENTIALS.md).
 - Test each role in a separate signed-out browser session. Use fictional data only.
-- Select **Demo state → Ready** unless a scenario explicitly tests loading, empty, or error behavior.
 - State is tenant-scoped and persisted by the backend. Avoid deleting shared fixtures; use uniquely named test records.
 
 > Historical documents may mention `/projects/light-pos/`; that route currently returns 404. The root-mounted host above is the verified public UI.

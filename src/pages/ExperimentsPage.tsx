@@ -12,6 +12,7 @@ import { useStore } from '../store';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { NumberInput } from '../components/ui/number-input';
 import { Metric, FormActions, Modal, PageHead } from '../components/molecules';
 
 const cloneMenus = (menus: MenuItem[]) => structuredClone(menus);
@@ -105,36 +106,33 @@ export function ExperimentsPage() {
               const v = m.versions!.find((x) => x.version === m.currentVersion)!;
               return (
                 <div className="inline-form" key={m.id}>
-                  <Input
+                  <NumberInput
                     label={`${v.name} draft price`}
-                    type="number"
-                    min="0"
+                    min={0}
                     value={v.price}
-                    onChange={(e) => {
+                    onValueChange={(price) => {
                       const menuDrafts = [...editing.menuDrafts];
                       menuDrafts[index] = {
                         ...m,
                         versions: m.versions!.map((x) =>
                           x.version === m.currentVersion
-                            ? { ...x, price: Number(e.target.value) }
+                            ? { ...x, price: price === '' ? 0 : price }
                             : x
                         ),
                       };
                       setEditing({ ...editing, menuDrafts });
                     }}
                   />
-                  <Input
+                  <NumberInput
                     label={`${v.name} daily target`}
-                    type="number"
-                    min="0"
-                    step="1"
+                    min={0}
                     value={editing.dailyTargets[m.id] || 0}
-                    onChange={(e) =>
+                    onValueChange={(target) =>
                       setEditing({
                         ...editing,
                         dailyTargets: {
                           ...editing.dailyTargets,
-                          [m.id]: Math.max(0, Math.floor(Number(e.target.value))),
+                          [m.id]: target === '' ? 0 : target,
                         },
                       })
                     }

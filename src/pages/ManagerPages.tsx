@@ -22,6 +22,7 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Input } from '../components/ui/input';
+import { NumberInput } from '../components/ui/number-input';
 import { NativeSelect as Select } from '../components/ui/native-select';
 import { Progress } from '../components/ui/progress';
 import {
@@ -32,7 +33,6 @@ import {
   SectionTitle,
   StatusRow,
 } from '../components/molecules';
-import { StateBoundary } from '../components/DemoState';
 
 export function ManagerDashboard() {
   const s = useStore();
@@ -70,88 +70,86 @@ export function ManagerDashboard() {
         title="Service overview"
         description={`Revenue pulse, cashier performance, and messages for ${tenant}.`}
       />
-      <StateBoundary>
-        <div className="metric-grid">
-          <Metric
-            label="Revenue today"
-            value={idr(revenueToday)}
-            delta={`${paidToday.length} paid ${
-              paidToday.length === 1 ? 'order' : 'orders'
-            } today`}
-            icon={<WalletCards />}
-          />
-          <Metric
-            label="Average order"
-            value={idr(average)}
-            delta={`${paid.length} paid orders on record`}
-            icon={<BarChart3 />}
-          />
-          <Metric
-            label="Cashiers active"
-            value={`${active.length} / ${todaysShifts.length}`}
-            help={`${todaysShifts.length - active.length} scheduled today`}
-            icon={<Users />}
-          />
-          <Metric
-            label="Open orders"
-            value={String(openOrders)}
-            help={`${coverage}% of orders paid · refreshed ${refreshed}`}
-            icon={<ClipboardCheck />}
-          />
-        </div>
-        <div className="split">
-          <Card>
-            <SectionTitle
-              title="Cashier summaries"
-              meta={`${todaysShifts.length} shifts today`}
-            />
-            {todaysShifts.length ? (
-              todaysShifts.map((sh) => (
-                <StatusRow
-                  key={sh.id}
-                  title={sh.staff}
-                  meta={`${sh.start}–${sh.end} · ${sh.location}`}
-                  status={shiftState(sh)}
-                />
-              ))
-            ) : (
-              <p className="muted">No shifts scheduled for today.</p>
-            )}
-          </Card>
-          <Card>
-            <SectionTitle
-              title="Manager inbox"
-              meta={`${s.data.messages.length} messages`}
-            />
-            {s.data.messages.length ? (
-              s.data.messages.map((m) => (
-                <div className="callout" key={m.id}>
-                  <strong>{m.from}</strong>
-                  <p>{m.text}</p>
-                  <small>{m.time}</small>
-                </div>
-              ))
-            ) : (
-              <p className="muted">No messages.</p>
-            )}
-          </Card>
-        </div>
+      <div className="metric-grid">
+        <Metric
+          label="Revenue today"
+          value={idr(revenueToday)}
+          delta={`${paidToday.length} paid ${
+            paidToday.length === 1 ? 'order' : 'orders'
+          } today`}
+          icon={<WalletCards />}
+        />
+        <Metric
+          label="Average order"
+          value={idr(average)}
+          delta={`${paid.length} paid orders on record`}
+          icon={<BarChart3 />}
+        />
+        <Metric
+          label="Cashiers active"
+          value={`${active.length} / ${todaysShifts.length}`}
+          help={`${todaysShifts.length - active.length} scheduled today`}
+          icon={<Users />}
+        />
+        <Metric
+          label="Open orders"
+          value={String(openOrders)}
+          help={`${coverage}% of orders paid · refreshed ${refreshed}`}
+          icon={<ClipboardCheck />}
+        />
+      </div>
+      <div className="split">
         <Card>
-          <SectionTitle title="Audit pulse" meta="Latest recorded actions" />
-          {s.data.audit.length ? (
-            s.data.audit
-              .slice(0, 4)
-              .map((a, i) => (
-                <div className="audit" key={i}>
-                  <span>●</span>
-                  {a}
-                </div>
-              ))
+          <SectionTitle
+            title="Cashier summaries"
+            meta={`${todaysShifts.length} shifts today`}
+          />
+          {todaysShifts.length ? (
+            todaysShifts.map((sh) => (
+              <StatusRow
+                key={sh.id}
+                title={sh.staff}
+                meta={`${sh.start}–${sh.end} · ${sh.location}`}
+                status={shiftState(sh)}
+              />
+            ))
           ) : (
-            <p className="muted">No recorded actions yet.</p>
+            <p className="muted">No shifts scheduled for today.</p>
           )}
         </Card>
-      </StateBoundary>
+        <Card>
+          <SectionTitle
+            title="Manager inbox"
+            meta={`${s.data.messages.length} messages`}
+          />
+          {s.data.messages.length ? (
+            s.data.messages.map((m) => (
+              <div className="callout" key={m.id}>
+                <strong>{m.from}</strong>
+                <p>{m.text}</p>
+                <small>{m.time}</small>
+              </div>
+            ))
+          ) : (
+            <p className="muted">No messages.</p>
+          )}
+        </Card>
+      </div>
+      <Card>
+        <SectionTitle title="Audit pulse" meta="Latest recorded actions" />
+        {s.data.audit.length ? (
+          s.data.audit
+            .slice(0, 4)
+            .map((a, i) => (
+              <div className="audit" key={i}>
+                <span>●</span>
+                {a}
+              </div>
+            ))
+        ) : (
+          <p className="muted">No recorded actions yet.</p>
+        )}
+      </Card>
     </>
   );
 }
@@ -322,6 +320,8 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+type ExpenseDraftLine = Omit<ExpenseLine, 'amount'> & { amount?: number };
+
 export function ExpensesPage() {
   const s = useStore();
   const formRef = useRef<HTMLFormElement>(null);
@@ -329,12 +329,11 @@ export function ExpensesPage() {
   const [file, setFile] = useState<File>();
   const [preview, setPreview] = useState('');
   const [parsing, setParsing] = useState(false);
-  const emptyLine = (): ExpenseLine => ({
+  const emptyLine = (): ExpenseDraftLine => ({
     id: crypto.randomUUID(),
     description: '',
-    amount: 0,
   });
-  const [lines, setLines] = useState<ExpenseLine[]>([emptyLine()]);
+  const [lines, setLines] = useState<ExpenseDraftLine[]>([emptyLine()]);
   const [error, setError] = useState('');
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string>();
@@ -360,7 +359,7 @@ export function ExpensesPage() {
     (sum, line) => sum + (Number(line.amount) || 0),
     0
   );
-  const updateLine = (id: string, patch: Partial<ExpenseLine>) =>
+  const updateLine = (id: string, patch: Partial<ExpenseDraftLine>) =>
     setLines((xs) => xs.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   const close = () => {
     request.current++;
@@ -552,18 +551,14 @@ export function ExpensesPage() {
                       updateLine(line.id, { description: e.target.value })
                     }
                   />
-                  <Input
+                  <NumberInput
                     label={`Line ${i + 1} quantity`}
-                    type="number"
-                    min="0.01"
-                    step="any"
+                    decimals={2}
+                    min={0.01}
                     value={line.quantity ?? ''}
-                    onChange={(e) =>
+                    onValueChange={(quantity) =>
                       updateLine(line.id, {
-                        quantity:
-                          e.target.value === ''
-                            ? undefined
-                            : Number(e.target.value),
+                        quantity: quantity === '' ? undefined : quantity,
                       })
                     }
                   />
@@ -574,14 +569,14 @@ export function ExpensesPage() {
                       updateLine(line.id, { unit: e.target.value })
                     }
                   />
-                  <Input
+                  <NumberInput
                     required
                     label={`Line ${i + 1} amount`}
-                    type="number"
-                    min="1"
-                    value={line.amount || ''}
-                    onChange={(e) =>
-                      updateLine(line.id, { amount: Number(e.target.value) })
+                    value={line.amount ?? ''}
+                    onValueChange={(amount) =>
+                      updateLine(line.id, {
+                        amount: amount === '' ? undefined : amount,
+                      })
                     }
                   />
                   <Button
@@ -608,7 +603,7 @@ export function ExpensesPage() {
                 onClick={() =>
                   setLines((xs) => [
                     ...xs,
-                    { id: crypto.randomUUID(), description: '', amount: 0 },
+                    { id: crypto.randomUUID(), description: '' },
                   ])
                 }
               >
@@ -797,11 +792,10 @@ export function ExpensesPage() {
                   defaultValue={record.date}
                   required
                 />
-                <Input
+                <NumberInput
                   label="Amount (IDR)"
                   name="amount"
-                  type="number"
-                  min="1"
+                  min={1}
                   defaultValue={record.amount}
                   disabled={record.lines.length > 0}
                   required
@@ -985,12 +979,11 @@ export function InventoryPage() {
               </option>
             ))}
           </Select>
-          <Input
+          <NumberInput
             label="Recipe portion (base unit: g or ml)"
-            type="number"
-            min="1"
+            min={1}
             value={recipe}
-            onChange={(e) => setRecipe(Number(e.target.value))}
+            onValueChange={(portion) => setRecipe(portion === '' ? 0 : portion)}
           />
           <div className="formula">
             <span>
@@ -1013,13 +1006,12 @@ export function InventoryPage() {
                 : 'Not priced'
             }
           />
-          <Input
+          <NumberInput
             label={`Cost per ${item.unit} (IDR)`}
-            type="number"
-            min="0"
+            min={0}
             value={cost}
             placeholder={item.unitCost ? String(item.unitCost) : ''}
-            onChange={(e) => setCost(e.target.value)}
+            onValueChange={(next) => setCost(next === '' ? '' : String(next))}
           />
           <div className="formula highlight">
             <span>
@@ -1041,13 +1033,14 @@ export function InventoryPage() {
               receive();
             }}
           >
-            <Input
+            <NumberInput
               label={`Quantity (${item.unit})`}
-              type="number"
-              min="0.01"
-              step="0.01"
+              decimals={2}
+              min={0.01}
               value={receiving}
-              onChange={(e) => setReceiving(e.target.value)}
+              onValueChange={(next) =>
+                setReceiving(next === '' ? '' : String(next))
+              }
             />
             <Input
               label="Note"

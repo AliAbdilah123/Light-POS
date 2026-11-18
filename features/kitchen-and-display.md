@@ -12,7 +12,6 @@
 **UI verification**
 - Confirm only the assigned tenant's menu/order markers appear.
 - Confirm no cashier, financial, catalog-edit, or admin navigation is visible.
-- With **Demo state → Loading**, verify **Loading kitchen**; with **Error**, verify the retry/error explanation; restore Ready.
 - Directly visit `/admin/menu` and confirm **Access unavailable**.
 
 ## Customer menu display
@@ -25,7 +24,6 @@
 **UI verification**
 - Confirm the main menu is read-only: no product action buttons, editing controls, checkout, financial data, or private operations.
 - Confirm only the assigned tenant's marker appears.
-- Test Loading and Error demo states and restore Ready.
 - Check phone/tablet layouts for readable cards and no horizontal page overflow.
 - Directly visit `/admin/menu` and confirm **Access unavailable**.
 

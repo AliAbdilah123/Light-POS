@@ -25,13 +25,12 @@ const tables = (order: Order, names: Map<string, string>) =>
   'No table';
 
 export function KitchenPage() {
-  const { data, sessionMenus, update, demo, business, user } = useStore();
+  const { data, sessionMenus, update, business, user } = useStore();
   const [selected, setSelected] = useState<string>();
   const [printNotice, setPrintNotice] = useState('');
-  const orders = (demo === 'empty'
-    ? []
-    : data.orders.filter((o) => o.status === 'Preparing')
-  ).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+  const orders = data.orders
+    .filter((o) => o.status === 'Preparing')
+    .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
   const order = orders.find((o) => o.id === selected);
   const tableNames = new Map(data.tables.map((t) => [t.id, t.name]));
   const availability = (
@@ -95,30 +94,6 @@ export function KitchenPage() {
       );
     }
   };
-  if (demo === 'loading')
-    return (
-      <>
-        <PageHead
-          eyebrow="Kitchen"
-          title="Kitchen"
-          description="Preparing orders and live menu availability."
-        />
-        <div className="skeleton" aria-label="Loading kitchen" />
-      </>
-    );
-  if (demo === 'error')
-    return (
-      <>
-        <PageHead
-          eyebrow="Kitchen"
-          title="Kitchen"
-          description="Preparing orders and live menu availability."
-        />
-        <p role="alert" className="alert bad">
-          Kitchen data could not be loaded. Try again.
-        </p>
-      </>
-    );
   const low = sessionMenus.filter(
     (m) => !m.archived && m.availability === 'low'
   ).length;

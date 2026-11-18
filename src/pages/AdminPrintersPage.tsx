@@ -20,6 +20,7 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Input } from '../components/ui/input';
+import { NumberInput } from '../components/ui/number-input';
 import { NativeSelect as Select } from '../components/ui/native-select';
 import { DataTable, type DataTableColumn } from '../components/DataTable';
 import { Metric, Modal, PageHead, SectionTitle } from '../components/molecules';
@@ -506,15 +507,14 @@ export function AdminPrintersPage() {
                 setDraft({ ...draft, host: event.target.value })
               }
             />
-            <Input
+            <NumberInput
               label="Port"
-              type="number"
               min={1}
               max={65535}
               value={draft.port}
               required
-              onChange={(event) =>
-                setDraft({ ...draft, port: Number(event.target.value) })
+              onValueChange={(port) =>
+                setDraft({ ...draft, port: port === '' ? 0 : port })
               }
             />
             <Select

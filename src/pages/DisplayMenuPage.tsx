@@ -15,16 +15,14 @@ const availability = (menu: MenuItem) =>
     : 'Available';
 
 export function DisplayMenuPage() {
-  const { sessionMenus, demo, reload } = useStore();
+  const { sessionMenus, reload } = useStore();
   useEffect(() => {
     const timer = window.setInterval(() => {
       void reload();
     }, 60000);
     return () => window.clearInterval(timer);
   }, [reload]);
-  const menus = (demo === 'empty' ? [] : sessionMenus).filter(
-    (menu) => !menu.archived
-  );
+  const menus = sessionMenus.filter((menu) => !menu.archived);
   const composition = (menu: MenuItem) =>
     version(menu)
       ?.components?.map(
@@ -40,30 +38,6 @@ export function DisplayMenuPage() {
           })()}`
       )
       .join(', ');
-  if (demo === 'loading')
-    return (
-      <>
-        <PageHead
-          eyebrow="Display"
-          title="Menu display"
-          description="Current-session menu and availability."
-        />
-        <div className="skeleton" aria-label="Loading menu display" />
-      </>
-    );
-  if (demo === 'error')
-    return (
-      <>
-        <PageHead
-          eyebrow="Display"
-          title="Menu display"
-          description="Current-session menu and availability."
-        />
-        <p role="alert" className="alert bad">
-          Menu could not be loaded. Try again later.
-        </p>
-      </>
-    );
   return (
     <>
       <PageHead

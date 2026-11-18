@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-18 — Sidebar and sign-in cleanup
+
+- Removed the **Demo state** selector from the sidebar and deleted the now-unreachable demo-state feature: `StateBoundary`, the `demo`/`setDemo` store fields, the `DemoMode` type, and the loading/empty/error branches in the kitchen and display pages.
+- Added a collapsible desktop sidebar: a toggle in the sidebar header switches between the 272px panel and a 76px icon rail, persists in `localStorage` (`pos-sidebar-collapsed`), and leaves the mobile sheet unchanged.
+- Removed the **Demo accounts** block from the sign-in card.
+- Replaced the **Show/Hide** text link with an eye icon inside the password field (`aria-label` and `aria-pressed` reflect the state).
+- Added a shared `NumberInput` and converted every numeric field (menu price, ingredient and component quantities, variation price deltas, coupon value, revenue targets, table capacity, printer port, shift cash, experiment prices and targets, expense quantities and amounts, recipe portions, unit cost, stock receipts, cash received, imported menu prices). Values format live with `id-ID` grouping (`1.250.000`), keep the caret in place, accept a comma decimal separator where fractions apply, and submit the raw number through a hidden field so existing form parsing is unchanged.
+- Verified: typecheck, lint, 121 frontend tests, and browser checks for grouping, decimals, caret placement, form reset, and persisted values.
+
 ## 2026-11-16 — Thermal receipt and kitchen printing
 
 - Added tenant-scoped network thermal printer management at **Printers & printing** (`/admin/printers`): unique name, host/IP, TCP port, 58/80 mm paper width, enabled state, test tickets, edit, and removal. Tenant admins manage their own tenant; superadmins must select one business.
