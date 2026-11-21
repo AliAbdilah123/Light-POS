@@ -20,8 +20,9 @@ Use a tenant admin for one business and superadmin for portfolio-wide checks.
 7. Edit an item and save; open its history and verify a new version while previous versions remain visible.
 8. Archive it through the confirmation dialog; verify it leaves Active, appears in Archived, and is unavailable in new orders while history remains.
 9. Toggle availability and confirm Kitchen, Display, and ordering surfaces reflect the current state.
-10. Select **Import from photos**, upload 1–5 JPEG/PNG/WebP files (5 MB each, 20 MB total), then review and edit the Hermes-generated name, description, category, and integer IDR price drafts.
-11. Remove or uncheck unwanted/duplicate drafts and select **Save N menu items**. Confirm no catalog item appears before save, all accepted items appear together afterward, and a failed save preserves the draft.
+10. Edit an item and use **Menu photo** to upload a PNG/JPEG/WebP image (max 2 MB). Confirm the preview appears, the catalog card shows the photo, and the order-entry tile and display menu show it too. Replace and remove the photo and confirm both surfaces fall back to the icon.
+11. Select **Import from photos**, upload 1–5 JPEG/PNG/WebP files (5 MB each, 20 MB total), then review and edit the Hermes-generated name, description, category, and integer IDR price drafts.
+12. Remove or uncheck unwanted/duplicate drafts and select **Save N menu items**. Confirm no catalog item appears before save, all accepted items appear together afterward, and a failed save preserves the draft.
 
 The backend requires `HERMES_URL` and `HERMES_SECRET`; neither is exposed to the browser or logs. Missing configuration reports the parser as unavailable. Photos are request-only and are not retained.
 

@@ -66,6 +66,26 @@ export function matchInventoryItem(name:string,inventory:InventoryItem[]){
   for(const item of inventory){const score=[...moneyWords(item.name)].filter(word=>target.has(word)).length;if(score>bestScore){best=item;bestScore=score}}
   return bestScore>0?best:undefined
 }
+export function stockFromExpenseLines(inventory:InventoryItem[],lines:ExpenseLine[],label:string,actor:string,at=new Date().toISOString()){
+  const items=inventory.map(item=>({...item})),movements:InventoryMovement[]=[];
+  for(const line of lines){
+    if(!line.quantity||!line.unit)continue;
+    const name=line.description.trim(),unit=line.unit.trim();
+    let item=items.find(x=>x.name.trim().toLowerCase()===name.toLowerCase())||matchInventoryItem(name,items),quantity=line.quantity;
+    if(item&&item.unit!==unit){
+      try{quantity=unitConvert(line.quantity,unit as ConvertUnit,item.unit as ConvertUnit)}catch{item=undefined}
+    }
+    if(!item){
+      item={id:`stock-${crypto.randomUUID()}`,name,quantity:0,unit,reorderAt:0,status:'Healthy',unitCost:Math.round(line.amount/line.quantity)};
+      items.push(item)
+    }
+    const added=Math.round(quantity*1000)/1000;
+    item.quantity=Math.round((item.quantity+added)*1000)/1000;
+    item.status=item.quantity>=item.reorderAt?'Healthy':'Low';
+    movements.push({id:crypto.randomUUID(),itemId:item.id,type:'receive',quantity:added,unit:item.unit,note:`Expense: ${label}`,at,actor})
+  }
+  return{inventory:items,movements}
+}
 export function ingredientCost(ingredient:Ingredient,inventory:InventoryItem[]){
   if(!ingredient.quantity||!ingredient.unit)return 0;
   const item=matchInventoryItem(ingredient.name,inventory);if(!item?.unitCost)return 0;

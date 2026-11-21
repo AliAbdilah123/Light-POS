@@ -25,6 +25,8 @@ import { Card } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { NumberInput } from '../components/ui/number-input';
 import { Modal, PageHead, SectionTitle } from '../components/molecules';
+import { MenuImage } from '../components/MenuImage';
+import { useMenuImages } from '../services/menuImages';
 import { printOrder, printReason, getReceiptHeader } from '../services/printing';
 import { downloadReceiptJpg } from '../services/receiptImage';
 
@@ -32,6 +34,7 @@ type CatalogItem = MenuItem & MenuVersion & { bundleError?: string };
 
 export function OrderEntry() {
   const s = useStore();
+  const { images } = useMenuImages(s.business);
   const [cat, setCat] = useState('All');
   const [q, setQ] = useState('');
   const [edit, setEdit] = useState<string>();
@@ -486,9 +489,17 @@ export function OrderEntry() {
                     start.current.long = false;
                   }}
                 >
-                  <span className="product-icon" aria-hidden="true">
-                    {item.icon}
-                  </span>
+                  <MenuImage
+                    business={s.business}
+                    menuId={item.id}
+                    version={images[item.id]}
+                    className="menu-photo tile"
+                    fallback={
+                      <span className="product-icon" aria-hidden="true">
+                        {item.icon}
+                      </span>
+                    }
+                  />
                   <strong>{item.name}</strong>
                   <small>{item.category}</small>
                   {item.availability === 'low' && (

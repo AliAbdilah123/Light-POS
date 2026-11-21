@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-18 — Menu photos, expense-to-stock, inventory table, layout fixes
+
+- Added a per-menu photo: tenant admins upload, replace, or remove a PNG/JPEG/WebP (max 2 MB) from the menu editor. Photos are stored in a new `menu_images` table keyed by menu id and tenant, served by `GET /api/menu-image` with `nosniff` and private caching, listed by `GET /api/menu-images`, and mutated only by admins with `manageCatalog` plus CSRF. Photos appear on catalog cards, order-entry tiles, and the display menu; the emoji icon remains the fallback.
+- Added **Add these line items to inventory** to the expense form. Checked lines with a quantity and unit increase stock on hand (matching an existing ingredient by name, converting compatible units, otherwise creating the ingredient with a derived unit cost) and append a `receive` movement noted `Expense: <label>`. The form rejects the checkbox when no line has both a quantity and a unit.
+- Added a **Stock on hand** table to **Inventory & recipes** listing every ingredient with on-hand quantity, reorder point, status, unit cost, stock value, and last movement, with search, sorting, and an **Open** action that selects the ingredient for the existing recipe/cost/receive panels.
+- Fixed layout defects: checkboxes and radios no longer inherit the 38px text-input chrome (the **Hidden**/**Required** boxes rendered as tall bordered boxes); file inputs use a styled picker button; the seat detail card spaces its badge, order summary, primary action, and status select; the expense line editor uses one aligned header row with per-field labels on narrow screens and a separate total/action footer; the experiment draft prices and daily targets render as an aligned table instead of wrapping label pairs.
+- Verified: typecheck, lint, 124 frontend tests, 26 backend tests, and browser checks at 1440px and 390px for the seat card, expense form, experiment dialog, menu photo upload, order/display photos, and the inventory table.
+
 ## 2026-11-18 — Sidebar and sign-in cleanup
 
 - Removed the **Demo state** selector from the sidebar and deleted the now-unreachable demo-state feature: `StateBoundary`, the `demo`/`setDemo` store fields, the `DemoMode` type, and the loading/empty/error branches in the kitchen and display pages.

@@ -19,18 +19,20 @@ Use a manager account for its assigned tenant. Admins can also access these rout
 5. Save; verify the expense row and computed total.
 6. Expand the row to inspect line details; edit a line and verify total changes.
 7. Delete and confirm the destructive prompt.
-8. If receipt parsing is configured, upload an accepted receipt, review the same-origin prefilled fields, correct them, then save. If unavailable, verify a clear non-destructive error and manual entry remains usable.
+8. Re-add an expense, give a line a quantity and unit, tick **Add these line items to inventory**, and save. Confirm the ingredient's stock on hand rises by that quantity and a **Received** movement noted `Expense: <label>` appears. Untick the box and confirm stock is unchanged; tick it with no quantity/unit and confirm validation blocks the save.
+9. If receipt parsing is configured, upload an accepted receipt, review the same-origin prefilled fields, correct them, then save. If unavailable, verify a clear non-destructive error and manual entry remains usable.
 
 ## 3. Inventory and recipe conversion
 
 1. Open **Inventory & recipes**.
-2. Locate Sugar and set purchase quantity to `1` kg and cost to `28000`.
-3. Set recipe consumption to `100` g.
-4. Verify `1 kg × 1.000 = 1.000 g`.
-5. Verify `100 g ÷ 1.000 g × Rp28.000 = Rp2.800/portion` and 10 portions.
-6. Change values and verify conversion and cost update.
-7. Confirm incompatible mass/volume conversion is rejected rather than silently calculated.
-8. Review movement/stock records and low/reorder status where presented.
+2. Verify the **Stock on hand** table lists every ingredient with on-hand quantity, reorder point, status, unit cost, stock value, and last movement; search and sort it, and use **Open** to select an ingredient.
+3. Locate Sugar and set purchase quantity to `1` kg and cost to `28000`.
+4. Set recipe consumption to `100` g.
+5. Verify `1 kg × 1.000 = 1.000 g`.
+6. Verify `100 g ÷ 1.000 g × Rp28.000 = Rp2.800/portion` and 10 portions.
+7. Change values and verify conversion and cost update.
+8. Confirm incompatible mass/volume conversion is rejected rather than silently calculated.
+9. Review movement/stock records and low/reorder status where presented.
 
 ## 4. Menu profitability
 

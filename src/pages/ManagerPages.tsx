@@ -12,10 +12,13 @@ import {
   localDateTime,
   localDay,
   recipeCost,
+  stockFromExpenseLines,
   unitConvert,
   type ExpenseLine,
+  type InventoryItem,
   type InventoryMovement,
 } from '../domain';
+import { DataTable, type DataTableColumn } from '../components/DataTable';
 import { parseReceipt, RECEIPT_MAX_BYTES } from '../services/receiptParser';
 import { useStore } from '../store';
 import { Badge } from '../components/ui/badge';
@@ -334,6 +337,7 @@ export function ExpensesPage() {
     description: '',
   });
   const [lines, setLines] = useState<ExpenseDraftLine[]>([emptyLine()]);
+  const [toInventory, setToInventory] = useState(false);
   const [error, setError] = useState('');
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string>();
@@ -365,6 +369,7 @@ export function ExpensesPage() {
     request.current++;
     formRef.current?.reset();
     setLines([emptyLine()]);
+    setToInventory(false);
     setError('');
     setFile(undefined);
     setPreview('');
@@ -470,6 +475,15 @@ export function ExpensesPage() {
       quantity: x.quantity === undefined ? undefined : Number(x.quantity),
       amount: Number(x.amount),
     }));
+    if (toInventory && !cleanLines.some((x) => x.quantity && x.unit)) {
+      setError(
+        'Add a quantity and unit to at least one line to record stock.'
+      );
+      return;
+    }
+    const stock = toInventory
+      ? stockFromExpenseLines(s.data.inventory, cleanLines, label, s.user.name)
+      : undefined;
     s.update((d) => ({
       ...d,
       expenses: [
@@ -485,6 +499,12 @@ export function ExpensesPage() {
         },
         ...d.expenses,
       ],
+      ...(stock
+        ? {
+            inventory: stock.inventory,
+            inventoryMovements: [...stock.movements, ...d.inventoryMovements],
+          }
+        : {}),
     }));
     close();
   };
@@ -501,7 +521,7 @@ export function ExpensesPage() {
         }
       />
       {open && (
-        <Modal title="Add expense" onClose={close}>
+        <Modal title="Add expense" onClose={close} className="wide">
           {error && (
             <div className="alert bad" role="alert">
               {error}
@@ -541,44 +561,63 @@ export function ExpensesPage() {
             </datalist>
             <Input required label="Date" name="date" type="date" />
             <div className="expense-lines">
+              <div className="expense-line-head" aria-hidden="true">
+                <span>Description</span>
+                <span>Quantity</span>
+                <span>Unit</span>
+                <span>Amount</span>
+                <span />
+              </div>
               {lines.map((line, i) => (
                 <div className="expense-line" key={line.id}>
-                  <Input
-                    required
-                    label={`Line ${i + 1} description`}
-                    value={line.description}
-                    onChange={(e) =>
-                      updateLine(line.id, { description: e.target.value })
-                    }
-                  />
-                  <NumberInput
-                    label={`Line ${i + 1} quantity`}
-                    decimals={2}
-                    min={0.01}
-                    value={line.quantity ?? ''}
-                    onValueChange={(quantity) =>
-                      updateLine(line.id, {
-                        quantity: quantity === '' ? undefined : quantity,
-                      })
-                    }
-                  />
-                  <Input
-                    label={`Line ${i + 1} unit`}
-                    value={line.unit || ''}
-                    onChange={(e) =>
-                      updateLine(line.id, { unit: e.target.value })
-                    }
-                  />
-                  <NumberInput
-                    required
-                    label={`Line ${i + 1} amount`}
-                    value={line.amount ?? ''}
-                    onValueChange={(amount) =>
-                      updateLine(line.id, {
-                        amount: amount === '' ? undefined : amount,
-                      })
-                    }
-                  />
+                  <div className="line-field">
+                    <span className="line-label">Description</span>
+                    <Input
+                      required
+                      aria-label={`Line ${i + 1} description`}
+                      value={line.description}
+                      onChange={(e) =>
+                        updateLine(line.id, { description: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="line-field">
+                    <span className="line-label">Quantity</span>
+                    <NumberInput
+                      aria-label={`Line ${i + 1} quantity`}
+                      decimals={2}
+                      min={0.01}
+                      value={line.quantity ?? ''}
+                      onValueChange={(quantity) =>
+                        updateLine(line.id, {
+                          quantity: quantity === '' ? undefined : quantity,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="line-field">
+                    <span className="line-label">Unit</span>
+                    <Input
+                      aria-label={`Line ${i + 1} unit`}
+                      value={line.unit || ''}
+                      onChange={(e) =>
+                        updateLine(line.id, { unit: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="line-field">
+                    <span className="line-label">Amount</span>
+                    <NumberInput
+                      required
+                      aria-label={`Line ${i + 1} amount`}
+                      value={line.amount ?? ''}
+                      onValueChange={(amount) =>
+                        updateLine(line.id, {
+                          amount: amount === '' ? undefined : amount,
+                        })
+                      }
+                    />
+                  </div>
                   <Button
                     type="button"
                     disabled={lines.length === 1}
@@ -596,8 +635,21 @@ export function ExpensesPage() {
                 </div>
               ))}
             </div>
-            {lines.length > 0 && <strong>Line total: {idr(lineTotal)}</strong>}
-            <div className="card-actions">
+            <div className="expense-inventory">
+              <label className="checkbox-field">
+                <input
+                  type="checkbox"
+                  checked={toInventory}
+                  onChange={(e) => setToInventory(e.target.checked)}
+                />
+                Add these line items to inventory
+              </label>
+              <small>
+                Lines with a quantity and unit increase stock on hand and append
+                a receive movement.
+              </small>
+            </div>
+            <div className="expense-lines-footer">
               <Button
                 type="button"
                 onClick={() =>
@@ -609,8 +661,9 @@ export function ExpensesPage() {
               >
                 Add line
               </Button>
-              <FormActions onCancel={close} submit="Record expense" />
+              <strong>Line total: {idr(lineTotal)}</strong>
             </div>
+            <FormActions onCancel={close} submit="Record expense" />
           </form>
         </Modal>
       )}
@@ -869,6 +922,68 @@ export function InventoryPage() {
       : 0;
   const portionCost = Math.round(costPerBase * recipe);
   const movements = s.data.inventoryMovements.filter((m) => m.itemId === item?.id);
+  const inventoryColumns: DataTableColumn<InventoryItem>[] = [
+    {
+      key: 'name',
+      label: 'Ingredient',
+      value: (x) => x.name,
+      render: (x) => (
+        <span>
+          <strong>{x.name}</strong>
+          <small>{x.unit}</small>
+        </span>
+      ),
+    },
+    {
+      key: 'quantity',
+      label: 'On hand',
+      value: (x) => x.quantity,
+      render: (x) => `${x.quantity.toLocaleString('id-ID')} ${x.unit}`,
+    },
+    {
+      key: 'reorderAt',
+      label: 'Reorder at',
+      value: (x) => x.reorderAt,
+      render: (x) => `${x.reorderAt.toLocaleString('id-ID')} ${x.unit}`,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      value: (x) => x.status,
+      render: (x) => (
+        <Badge
+          tone={
+            x.status === 'Healthy' ? 'good' : x.status === 'Low' ? 'warn' : 'bad'
+          }
+        >
+          {x.status}
+        </Badge>
+      ),
+    },
+    {
+      key: 'unitCost',
+      label: 'Unit cost',
+      value: (x) => x.unitCost ?? 0,
+      render: (x) => (x.unitCost ? idr(x.unitCost) : '—'),
+    },
+    {
+      key: 'value',
+      label: 'Stock value',
+      value: (x) => (x.unitCost ? x.quantity * x.unitCost : 0),
+      render: (x) =>
+        x.unitCost ? idr(Math.round(x.quantity * x.unitCost)) : '—',
+    },
+    {
+      key: 'last',
+      label: 'Last movement',
+      value: (x) =>
+        s.data.inventoryMovements.find((m) => m.itemId === x.id)?.at || '',
+      render: (x) => {
+        const last = s.data.inventoryMovements.find((m) => m.itemId === x.id);
+        return last ? localDateTime(last.at) : '—';
+      },
+    },
+  ];
   const saveCost = () => {
     if (!item) return;
     const value = Number(cost);
@@ -943,6 +1058,28 @@ export function InventoryPage() {
         title="Inventory & recipes"
         description="Stock on hand, unit costs, and append-only movements feed recipe costing."
       />
+      <Card>
+        <SectionTitle
+          title="Stock on hand"
+          meta={`${s.data.inventory.length} ingredients`}
+        />
+        <DataTable
+          ariaLabel="Inventory"
+          rows={s.data.inventory}
+          rowKey={(x) => x.id}
+          columns={inventoryColumns}
+          rowActions={(x) => (
+            <Button
+              aria-label={`Open ${x.name}`}
+              aria-pressed={x.id === item.id}
+              onClick={() => setItemId(x.id)}
+            >
+              Open
+            </Button>
+          )}
+          empty="No inventory items recorded."
+        />
+      </Card>
       <div className="ingredient-hero">
         <div>
           <Scale />

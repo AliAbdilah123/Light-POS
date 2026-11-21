@@ -1,6 +1,8 @@
 import { EmptyState } from '../components/ui/empty-state';
 import { Badge } from '../components/ui/badge';
 import { PageHead } from '../components/molecules';
+import { MenuImage } from '../components/MenuImage';
+import { useMenuImages } from '../services/menuImages';
 import { idr, type MenuItem } from '../domain';
 import { useEffect } from 'react';
 import { useStore } from '../store';
@@ -15,7 +17,8 @@ const availability = (menu: MenuItem) =>
     : 'Available';
 
 export function DisplayMenuPage() {
-  const { sessionMenus, reload } = useStore();
+  const { sessionMenus, reload, business } = useStore();
+  const { images } = useMenuImages(business);
   useEffect(() => {
     const timer = window.setInterval(() => {
       void reload();
@@ -69,6 +72,12 @@ export function DisplayMenuPage() {
                   </Badge>
                 </header>
                 <h2>{current?.name || menu.name}</h2>
+                <MenuImage
+                  business={business}
+                  menuId={menu.id}
+                  version={images[menu.id]}
+                  className="menu-photo display"
+                />
                 <strong className="display-price">
                   {idr(current?.price ?? menu.price)}
                 </strong>

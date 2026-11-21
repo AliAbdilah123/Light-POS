@@ -92,8 +92,8 @@ export function ExperimentsPage() {
               required
               onChange={(e) => setEditing({ ...editing, name: e.target.value })}
             />
-            <label>
-              Assumptions
+            <label className="field">
+              <span>Assumptions</span>
               <textarea
                 value={editing.assumptions}
                 onChange={(e) =>
@@ -101,49 +101,59 @@ export function ExperimentsPage() {
                 }
               />
             </label>
-            <h3>Draft menu and daily targets</h3>
-            {editing.menuDrafts.map((m, index) => {
-              const v = m.versions!.find((x) => x.version === m.currentVersion)!;
-              return (
-                <div className="inline-form" key={m.id}>
-                  <NumberInput
-                    label={`${v.name} draft price`}
-                    min={0}
-                    value={v.price}
-                    onValueChange={(price) => {
-                      const menuDrafts = [...editing.menuDrafts];
-                      menuDrafts[index] = {
-                        ...m,
-                        versions: m.versions!.map((x) =>
-                          x.version === m.currentVersion
-                            ? { ...x, price: price === '' ? 0 : price }
-                            : x
-                        ),
-                      };
-                      setEditing({ ...editing, menuDrafts });
-                    }}
-                  />
-                  <NumberInput
-                    label={`${v.name} daily target`}
-                    min={0}
-                    value={editing.dailyTargets[m.id] || 0}
-                    onValueChange={(target) =>
-                      setEditing({
-                        ...editing,
-                        dailyTargets: {
-                          ...editing.dailyTargets,
-                          [m.id]: target === '' ? 0 : target,
-                        },
-                      })
-                    }
-                  />
-                </div>
-              );
-            })}
-            <FormActions
-              onCancel={() => setEditing(undefined)}
-              submit="Save experiment"
-            />
+            <h3 className="full">Draft menu and daily targets</h3>
+            <div className="draft-grid full">
+              <div className="draft-head">
+                <span>Menu</span>
+                <span>Draft price</span>
+                <span>Daily target</span>
+              </div>
+              {editing.menuDrafts.map((m, index) => {
+                const v = m.versions!.find((x) => x.version === m.currentVersion)!;
+                return (
+                  <div className="draft-row" key={m.id}>
+                    <span className="draft-name">{v.name}</span>
+                    <NumberInput
+                      aria-label={`${v.name} draft price`}
+                      min={0}
+                      value={v.price}
+                      onValueChange={(price) => {
+                        const menuDrafts = [...editing.menuDrafts];
+                        menuDrafts[index] = {
+                          ...m,
+                          versions: m.versions!.map((x) =>
+                            x.version === m.currentVersion
+                              ? { ...x, price: price === '' ? 0 : price }
+                              : x
+                          ),
+                        };
+                        setEditing({ ...editing, menuDrafts });
+                      }}
+                    />
+                    <NumberInput
+                      aria-label={`${v.name} daily target`}
+                      min={0}
+                      value={editing.dailyTargets[m.id] || 0}
+                      onValueChange={(target) =>
+                        setEditing({
+                          ...editing,
+                          dailyTargets: {
+                            ...editing.dailyTargets,
+                            [m.id]: target === '' ? 0 : target,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="full">
+              <FormActions
+                onCancel={() => setEditing(undefined)}
+                submit="Save experiment"
+              />
+            </div>
           </form>
         </Modal>
       )}

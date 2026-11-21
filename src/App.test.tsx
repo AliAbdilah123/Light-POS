@@ -8,7 +8,7 @@ import type {Data} from './store';
 import {seedCoupons,seedExpenses,seedMenus,seedNotes,seedOrders,seedOrderTypes,seedShifts,seedSops,seedTables} from './mockData';
 
 const initial:Data={orders:seedOrders,orderTypes:seedOrderTypes,tables:seedTables,menus:seedMenus,experiments:[],coupons:seedCoupons,notes:seedNotes,expenses:seedExpenses,leaves:[],staff:[],shifts:seedShifts,shiftSessions:[{id:'shift-open',businessId:'harbor',cashierId:'test-cashier',cashierName:'Test cashier',openedAt:'2026-09-02T01:00:00.000Z',openingCash:500000}],inventory:[],inventoryMovements:[],sops:seedSops,sopHistory:[],messages:[],messagesRead:[],audit:['09:14 - Ayu created order S-104'],targets:{harbor:22000000,garden:25000000,north:18000000},planningNotes:{},schedules:{Mon:'07:00-21:00',Tue:'07:00-21:00',Wed:'07:00-21:00',Thu:'07:00-21:00',Fri:'07:00-22:00',Sat:'08:00-22:00',Sun:'08:00-20:00'}};
-let serverState:Data|undefined,revision=1,authenticated=true,conflict:Data|undefined,paymentQrConfigured=false,menuImportError='',tenantFixtures=[{id:'harbor',name:'Harbor Café',location:'Balikpapan',active:true},{id:'garden',name:'Garden Table',location:'Samarinda',active:false},{id:'north',name:'North Bakehouse',location:'Menteng',active:true}],userFixtures=[{id:'u1',displayName:'Zara Cashier',username:'zara',profileId:'system:cashier',active:true},{id:'u2',displayName:'Adi Manager',username:'adi',profileId:'custom-manager',active:false}],printerFixtures:Array<{id:string;name:string;host:string;port:number;paperWidth:58|80;enabled:boolean}>=[],printSettingsFixture={receiptPrinterId:null as string|null,kitchenPrinterId:null as string|null,autoPrintReceipt:true,autoPrintKitchen:false,receiptHeader:''},printRequests:Array<{orderId:string;type:string;auto:boolean}>=[];
+let serverState:Data|undefined,revision=1,authenticated=true,conflict:Data|undefined,paymentQrConfigured=false,menuImages:Record<string,string>={},menuImportError='',tenantFixtures=[{id:'harbor',name:'Harbor Café',location:'Balikpapan',active:true},{id:'garden',name:'Garden Table',location:'Samarinda',active:false},{id:'north',name:'North Bakehouse',location:'Menteng',active:true}],userFixtures=[{id:'u1',displayName:'Zara Cashier',username:'zara',profileId:'system:cashier',active:true},{id:'u2',displayName:'Adi Manager',username:'adi',profileId:'custom-manager',active:false}],printerFixtures:Array<{id:string;name:string;host:string;port:number;paperWidth:58|80;enabled:boolean}>=[],printSettingsFixture={receiptPrinterId:null as string|null,kitchenPrinterId:null as string|null,autoPrintReceipt:true,autoPrintKitchen:false,receiptHeader:''},printRequests:Array<{orderId:string;type:string;auto:boolean}>=[];
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json'}});
 const fixtureState=()=>{const saved=JSON.parse(localStorage.getItem('light-pos-demo-v1')||'null')||{};const data={...structuredClone(initial),...saved,menus:saved.menus||structuredClone(seedMenus),tables:saved.tables||structuredClone(seedTables).map(t=>({...t,status:saved.seatStatuses?.[t.id]||t.status})),expenses:(saved.expenses||structuredClone(seedExpenses)).map((e:Data['expenses'][number])=>({...e,category:e.category?.trim()||'Uncategorized',lines:Array.isArray(e.lines)?e.lines:[]}))};if(saved.expenses)localStorage.setItem('light-pos-demo-v1',JSON.stringify(data));return data};
 const sessionFor=(role=(localStorage.getItem('pos-role') as Role)||'cashier')=>({id:`test-${role}`,username:role,name:`Test ${role}`,role,businessIds:role==='superadmin'?['*']:['harbor'],csrfToken:'test-csrf'});
@@ -28,6 +28,10 @@ const fetchMock=vi.fn(async(input:RequestInfo|URL,options:RequestInit={})=>{cons
   if(path==='/payment-qr/image'&&(!options.method||options.method==='GET'))return paymentQrConfigured?new Response(new Uint8Array([137,80,78,71]),{headers:{'content-type':'image/png'}}):json({error:'Payment QR not configured.'},404);
   if(path==='/payment-qr'&&options.method==='PUT'){paymentQrConfigured=true;return json({configured:true,mime:'image/png',updatedAt:'2026-10-31T12:00:00.000Z'});}
   if(path==='/payment-qr'&&options.method==='DELETE'){paymentQrConfigured=false;return json({configured:false});}
+  if(path==='/menu-images'&&(!options.method||options.method==='GET'))return json({images:Object.entries(menuImages).map(([menuId,updatedAt])=>({menuId,updatedAt}))});
+  if(path==='/menu-image'&&options.method==='PUT'){const menuId=url.searchParams.get('menuId')!;menuImages[menuId]='2026-11-01T00:00:00.000Z';return json({menuId,updatedAt:menuImages[menuId]});}
+  if(path==='/menu-image'&&options.method==='DELETE'){const menuId=url.searchParams.get('menuId')!;delete menuImages[menuId];return json({menuId,removed:true});}
+  if(path==='/menu-image'&&(!options.method||options.method==='GET'))return new Response(new Uint8Array([137,80,78,71]),{headers:{'content-type':'image/png'}});
   if(path==='/printers'&&(!options.method||options.method==='GET'))return json({printers:structuredClone(printerFixtures),settings:{...printSettingsFixture,updatedAt:null},paperWidths:[58,80]});
   if(path==='/receipt-header'&&(!options.method||options.method==='GET'))return json({header:printSettingsFixture.receiptHeader});
   if(path==='/printers'&&options.method==='POST'){const body=JSON.parse(String(options.body)),printer={id:`printer-${printerFixtures.length+1}`,...body};printerFixtures.push(printer);return json({printer},201)}
@@ -48,7 +52,7 @@ const fetchMock=vi.fn(async(input:RequestInfo|URL,options:RequestInit={})=>{cons
 });
 const renderApp=async(path:string)=>{render(<MemoryRouter initialEntries={[path]}><App/></MemoryRouter>);await waitFor(()=>expect(screen.queryByLabelText('Loading session')).not.toBeInTheDocument())};
 
-beforeEach(()=>{serverState=undefined;revision=1;authenticated=true;conflict=undefined;paymentQrConfigured=false;menuImportError='';printerFixtures=[];printSettingsFixture={receiptPrinterId:null,kitchenPrinterId:null,autoPrintReceipt:true,autoPrintKitchen:false,receiptHeader:''};printRequests=[];tenantFixtures=[{id:'harbor',name:'Harbor Café',location:'Balikpapan',active:true},{id:'garden',name:'Garden Table',location:'Samarinda',active:false},{id:'north',name:'North Bakehouse',location:'Menteng',active:true}];userFixtures=[{id:'u1',displayName:'Zara Cashier',username:'zara',profileId:'system:cashier',active:true},{id:'u2',displayName:'Adi Manager',username:'adi',profileId:'custom-manager',active:false}];vi.stubGlobal('fetch',fetchMock);fetchMock.mockClear()});
+beforeEach(()=>{serverState=undefined;revision=1;authenticated=true;conflict=undefined;paymentQrConfigured=false;menuImages={};menuImportError='';printerFixtures=[];printSettingsFixture={receiptPrinterId:null,kitchenPrinterId:null,autoPrintReceipt:true,autoPrintKitchen:false,receiptHeader:''};printRequests=[];tenantFixtures=[{id:'harbor',name:'Harbor Café',location:'Balikpapan',active:true},{id:'garden',name:'Garden Table',location:'Samarinda',active:false},{id:'north',name:'North Bakehouse',location:'Menteng',active:true}];userFixtures=[{id:'u1',displayName:'Zara Cashier',username:'zara',profileId:'system:cashier',active:true},{id:'u2',displayName:'Adi Manager',username:'adi',profileId:'custom-manager',active:false}];vi.stubGlobal('fetch',fetchMock);fetchMock.mockClear()});
 afterEach(()=>{vi.useRealTimers();cleanup();localStorage.clear();vi.restoreAllMocks();vi.unstubAllGlobals()});
 
 describe('shadcn page controls',()=>{
@@ -526,6 +530,60 @@ describe('representative workflows',()=>{
     expect(row).not.toHaveTextContent('Recorded');
     expect(JSON.parse(localStorage.getItem('light-pos-demo-v1')!).expenses[0]).toMatchObject({category:'Supplies',amount:12000,lines:[{description:'Ice',quantity:2,unit:'bags',amount:12000}]});
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('records expense lines into inventory when the checkbox is selected',async()=>{
+    localStorage.setItem('pos-role','manager');await renderApp('/manager/expenses');
+    const u=userEvent.setup();
+    await u.click(screen.getByRole('button',{name:'Add expense'}));
+    await u.type(screen.getByLabelText('Description'),'Market run');
+    await u.type(screen.getByLabelText('Category'),'Supplies');
+    await u.type(screen.getByLabelText('Date'),'2026-09-04');
+    await u.type(screen.getByLabelText('Line 1 description'),'Arabica coffee');
+    await u.type(screen.getByLabelText('Line 1 quantity'),'2');
+    await u.type(screen.getByLabelText('Line 1 unit'),'kg');
+    await u.type(screen.getByLabelText('Line 1 amount'),'360000');
+    await u.click(screen.getByLabelText('Add these line items to inventory'));
+    await u.click(screen.getByRole('button',{name:'Record expense'}));
+    await waitFor(()=>expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const saved=JSON.parse(localStorage.getItem('light-pos-demo-v1')!);
+    expect(saved.inventory).toEqual([expect.objectContaining({name:'Arabica coffee',quantity:2,unit:'kg',unitCost:180000})]);
+    expect(saved.inventoryMovements[0]).toMatchObject({type:'receive',quantity:2,unit:'kg',note:'Expense: Market run'});
+    cleanup();
+    await renderApp('/manager/inventory');
+    const table=await screen.findByRole('table',{name:'Inventory'});
+    expect(within(table).getByText('Arabica coffee')).toBeInTheDocument();
+    expect(within(table).getByText('2 kg')).toBeInTheDocument();
+    expect(within(table).getByText(/Rp\s*360\.000/)).toBeInTheDocument();
+  });
+
+  it('requires a quantity and unit before recording expense lines into inventory',async()=>{
+    localStorage.setItem('pos-role','manager');await renderApp('/manager/expenses');
+    const u=userEvent.setup();
+    await u.click(screen.getByRole('button',{name:'Add expense'}));
+    await u.type(screen.getByLabelText('Description'),'Market run');
+    await u.type(screen.getByLabelText('Category'),'Supplies');
+    await u.type(screen.getByLabelText('Date'),'2026-09-04');
+    await u.type(screen.getByLabelText('Line 1 description'),'Ice');
+    await u.type(screen.getByLabelText('Line 1 amount'),'12000');
+    await u.click(screen.getByLabelText('Add these line items to inventory'));
+    await u.click(screen.getByRole('button',{name:'Record expense'}));
+    expect(screen.getByRole('alert')).toHaveTextContent('quantity and unit');
+    expect(JSON.parse(localStorage.getItem('light-pos-demo-v1')||'{}').expenses).toBeUndefined();
+  });
+
+  it('uploads and removes a menu photo from the catalog editor',async()=>{
+    localStorage.setItem('pos-role','admin');await renderApp('/admin/menu');
+    const u=userEvent.setup();
+    await u.click((await screen.findAllByRole('button',{name:'Edit'}))[0]);
+    const dialog=screen.getByRole('dialog');
+    await u.upload(within(dialog).getByLabelText('Menu photo'),new File([new Uint8Array([137,80,78,71])],'latte.png',{type:'image/png'}));
+    await u.click(within(dialog).getByRole('button',{name:'Upload photo'}));
+    expect(await within(dialog).findByRole('img',{name:/photo/})).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/menu-image?business=harbor'),expect.objectContaining({method:'PUT'}));
+    await u.click(within(dialog).getByRole('button',{name:'Remove photo'}));
+    await waitFor(()=>expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/menu-image?business=harbor'),expect.objectContaining({method:'DELETE'})));
+    await waitFor(()=>expect(within(dialog).queryByRole('img',{name:/photo/})).not.toBeInTheDocument());
   });
 
   it('does not offer amount editing for line-backed or legacy expenses',async()=>{

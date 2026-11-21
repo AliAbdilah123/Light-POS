@@ -621,56 +621,58 @@ export function SeatsPage() {
               title={current.name}
               meta={`${current.capacity} seats`}
             />
-            <Badge tone="info">{current.status}</Badge>
-            {linked ? (
-              <div className="linked-order">
-                <p>
-                  <strong>Order {linked.id}</strong> ·{' '}
-                  {linked.lines.reduce((n, l) => n + l.qty, 0)} lines ·{' '}
-                  {idr(linked.total)}
-                </p>
-                <Link className="button" to="/orders">
-                  Open in orders
+            <div className="seat-detail">
+              <Badge tone="info">{current.status}</Badge>
+              {linked ? (
+                <div className="linked-order">
+                  <p>
+                    <strong>Order {linked.id}</strong> ·{' '}
+                    {linked.lines.reduce((n, l) => n + l.qty, 0)} lines ·{' '}
+                    {idr(linked.total)}
+                  </p>
+                  <Link className="button" to="/orders">
+                    Open in orders
+                  </Link>
+                </div>
+              ) : (
+                <p>No active order on this table.</p>
+              )}
+              {current.status !== 'Unavailable' && (
+                <Link
+                  className="button primary"
+                  to={`/cashier/order?table=${encodeURIComponent(current.id)}`}
+                >
+                  Start order for {current.name}
                 </Link>
-              </div>
-            ) : (
-              <p>No active order on this table.</p>
-            )}
-            {current.status !== 'Unavailable' && (
-              <Link
-                className="button primary"
-                to={`/cashier/order?table=${encodeURIComponent(current.id)}`}
+              )}
+              <Select
+                label="Change status"
+                value={current.status}
+                disabled={!!linked}
+                onChange={(e) =>
+                  s.setTableStatus(
+                    [current.id],
+                    e.target.value as typeof current.status
+                  )
+                }
               >
-                Start order for {current.name}
-              </Link>
-            )}
-            <Select
-              label="Change status"
-              value={current.status}
-              disabled={!!linked}
-              onChange={(e) =>
-                s.setTableStatus(
-                  [current.id],
-                  e.target.value as typeof current.status
-                )
-              }
-            >
-              {[
-                'Available',
-                'Occupied',
-                'Reserved',
-                'Needs attention',
-                'Unavailable',
-              ].map((x) => (
-                <option key={x}>{x}</option>
-              ))}
-            </Select>
-            {linked && (
-              <small className="muted">
-                Status follows the open order. Complete or void {linked.id} to
-                change it.
-              </small>
-            )}
+                {[
+                  'Available',
+                  'Occupied',
+                  'Reserved',
+                  'Needs attention',
+                  'Unavailable',
+                ].map((x) => (
+                  <option key={x}>{x}</option>
+                ))}
+              </Select>
+              {linked && (
+                <small className="muted">
+                  Status follows the open order. Complete or void {linked.id} to
+                  change it.
+                </small>
+              )}
+            </div>
           </Card>
         )}
       </div>

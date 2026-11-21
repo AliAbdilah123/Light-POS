@@ -18,6 +18,13 @@ import {
 } from '../domain';
 import { useStore } from '../store';
 import { MenuPhotoImport } from '../components/MenuPhotoImport';
+import { MenuImage } from '../components/MenuImage';
+import {
+  deleteMenuImage,
+  menuImageUrl,
+  uploadMenuImage,
+  useMenuImages,
+} from '../services/menuImages';
 
 type Filter = 'Active' | 'Archived' | 'All';
 
@@ -33,7 +40,12 @@ export function AdminMenuPage() {
     [filter, setFilter] = useState<Filter>('Active'),
     [query, setQuery] = useState(''),
     [history, setHistory] = useState<MenuItem>(),
-    [archiving, setArchiving] = useState<MenuItem>();
+    [archiving, setArchiving] = useState<MenuItem>(),
+    [imageFile, setImageFile] = useState<File>(),
+    [imageBusy, setImageBusy] = useState(false),
+    [imageError, setImageError] = useState(''),
+    [imageMessage, setImageMessage] = useState('');
+  const { images, reload: reloadImages } = useMenuImages(s.business);
   const item = s.data.menus.find((m) => m.id === editing),
     current = item?.versions?.find((v) => v.version === item.currentVersion),
     standards = s.data.menus.filter(
@@ -68,6 +80,55 @@ export function AdminMenuPage() {
     setComponents([]);
     setVariations([]);
     setError('');
+    setImageFile(undefined);
+    setImageError('');
+    setImageMessage('');
+  };
+  const saveImage = async (menuId: string) => {
+    if (!imageFile) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(imageFile.type)) {
+      setImageError('Choose a PNG, JPEG, or WebP image.');
+      return;
+    }
+    if (imageFile.size > 2 * 1024 * 1024) {
+      setImageError('Menu photo must be 2 MB or smaller.');
+      return;
+    }
+    setImageBusy(true);
+    setImageError('');
+    setImageMessage('');
+    try {
+      await uploadMenuImage(s.business, menuId, imageFile, s.user.csrfToken);
+      setImageFile(undefined);
+      setImageMessage('Menu photo saved.');
+      reloadImages();
+    } catch (reason) {
+      setImageError(
+        reason instanceof Error
+          ? reason.message
+          : 'Menu photo could not be saved.'
+      );
+    } finally {
+      setImageBusy(false);
+    }
+  };
+  const removeImage = async (menuId: string) => {
+    setImageBusy(true);
+    setImageError('');
+    setImageMessage('');
+    try {
+      await deleteMenuImage(s.business, menuId, s.user.csrfToken);
+      setImageMessage('Menu photo removed.');
+      reloadImages();
+    } catch (reason) {
+      setImageError(
+        reason instanceof Error
+          ? reason.message
+          : 'Menu photo could not be removed.'
+      );
+    } finally {
+      setImageBusy(false);
+    }
   };
   const save = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -238,6 +299,68 @@ export function AdminMenuPage() {
               min={1}
               defaultValue={current?.price}
             />
+            {item ? (
+              <div className="menu-image-editor">
+                <strong>Menu photo</strong>
+                {images[item.id] ? (
+                  <img
+                    className="menu-photo"
+                    src={menuImageUrl(s.business, item.id, images[item.id])}
+                    alt={`${current?.name || item.name} photo`}
+                  />
+                ) : (
+                  <p className="hint-text">No photo yet.</p>
+                )}
+                <input
+                  type="file"
+                  aria-label="Menu photo"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(e) => {
+                    setImageFile(e.target.files?.[0]);
+                    setImageError('');
+                    setImageMessage('');
+                  }}
+                />
+                <div className="form-actions">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    disabled={!imageFile || imageBusy}
+                    onClick={() => void saveImage(item.id)}
+                  >
+                    {images[item.id] ? 'Replace photo' : 'Upload photo'}
+                  </Button>
+                  {images[item.id] && (
+                    <Button
+                      type="button"
+                      variant="danger"
+                      disabled={imageBusy}
+                      onClick={() => void removeImage(item.id)}
+                    >
+                      Remove photo
+                    </Button>
+                  )}
+                </div>
+                {imageError && (
+                  <p className="alert bad" role="alert">
+                    {imageError}
+                  </p>
+                )}
+                {imageMessage && (
+                  <p className="hint-text" role="status">
+                    {imageMessage}
+                  </p>
+                )}
+                <p className="hint-text">
+                  PNG, JPEG or WebP · max 2 MB. Shown on the catalog, order
+                  screen, and display.
+                </p>
+              </div>
+            ) : (
+              <p className="hint-text">
+                Save this menu, then reopen it to add a photo.
+              </p>
+            )}
             {kind === 'item' ? (
               <>
                 {ingredients.map((x, i) => (
@@ -282,7 +405,7 @@ export function AdminMenuPage() {
                         )
                       }
                     />
-                    <label>
+                    <label className="checkbox-field">
                       <input
                         aria-label={`Hide ingredient ${i + 1}`}
                         type="checkbox"
@@ -294,7 +417,7 @@ export function AdminMenuPage() {
                             )
                           )
                         }
-                      />{' '}
+                      />
                       Hidden
                     </label>
                   </fieldset>
@@ -324,7 +447,7 @@ export function AdminMenuPage() {
                         )
                       }
                     />
-                    <label>
+                    <label className="checkbox-field">
                       <input
                         type="checkbox"
                         aria-label={`Require ${
@@ -338,7 +461,7 @@ export function AdminMenuPage() {
                             )
                           )
                         }
-                      />{' '}
+                      />
                       Required
                     </label>
                     {g.options.map((o, k) => (
@@ -550,6 +673,12 @@ export function AdminMenuPage() {
                 title="View version history"
                 onClick={() => setHistory(m)}
               >
+                <MenuImage
+                  business={s.business}
+                  menuId={m.id}
+                  version={images[m.id]}
+                  className="menu-photo catalog"
+                />
                 <Badge
                   tone={
                     m.archived

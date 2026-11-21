@@ -79,6 +79,26 @@ test('stores one validated tenant payment QR with scoped reads, admin-only mutat
   assert.deepEqual(app.db.prepare("SELECT action FROM audit_events WHERE action LIKE 'Payment QR %' ORDER BY rowid").all().map(row=>row.action),['Payment QR added','Payment QR added','Payment QR replaced','Payment QR removed']);
 });
 
+test('stores one validated menu photo per menu with scoped reads and admin-only mutations',async()=>{
+  const png=new Uint8Array([137,80,78,71,13,10,26,10,0]),jpeg=new Uint8Array([255,216,255,224,0]);
+  const admin=await login('admin.harbor'),cashier=await login('cashier.harbor'),manager=await login('manager.harbor'),gardenAdmin=await login('admin.garden');
+  const harbor=await state(admin),menuId=harbor.body.data.menus[0].id;
+  const put=(auth,business,id=menuId,bytes=png,mime='image/png',csrf=auth.csrf)=>request(`/api/menu-image?business=${business}&menuId=${encodeURIComponent(id)}`,{method:'PUT',headers:{cookie:auth.cookie,'x-csrf-token':csrf,'content-type':mime},body:bytes});
+  assert.equal((await request('/api/menu-images?business=harbor')).status,401);
+  assert.deepEqual(await (await request('/api/menu-images?business=harbor',{headers:{cookie:cashier.cookie}})).json(),{images:[]});
+  assert.equal((await put(manager,'harbor')).status,403);assert.equal((await put(cashier,'harbor')).status,403);assert.equal((await put(admin,'harbor',menuId,png,'image/png','bad')).status,403);
+  assert.equal((await put(admin,'garden')).status,403);assert.equal((await put(admin,'harbor','missing-menu')).status,404);
+  assert.equal((await put(admin,'harbor',menuId,new Uint8Array(),'image/png')).status,400);assert.equal((await put(admin,'harbor',menuId,png,'image/gif')).status,415);assert.equal((await put(admin,'harbor',menuId,jpeg,'image/png')).status,400);assert.equal((await put(admin,'harbor',menuId,new Uint8Array(2*1024*1024+1),'image/png')).status,413);
+  let response=await put(admin,'harbor');assert.equal(response.status,200);assert.equal((await response.json()).menuId,menuId);
+  const listed=await (await request('/api/menu-images?business=harbor',{headers:{cookie:cashier.cookie}})).json();assert.deepEqual(listed.images.map(image=>image.menuId),[menuId]);
+  response=await request(`/api/menu-image?business=harbor&menuId=${encodeURIComponent(menuId)}`,{headers:{cookie:cashier.cookie}});assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'image/png');assert.equal(response.headers.get('x-content-type-options'),'nosniff');assert.match(response.headers.get('cache-control'),/private/);assert.deepEqual(new Uint8Array(await response.arrayBuffer()),png);
+  assert.equal((await request(`/api/menu-image?business=harbor&menuId=${encodeURIComponent(menuId)}`,{headers:{cookie:gardenAdmin.cookie}})).status,403);
+  assert.equal((await request(`/api/menu-image?business=garden&menuId=${encodeURIComponent(menuId)}`,{headers:{cookie:gardenAdmin.cookie}})).status,404);
+  response=await request(`/api/menu-image?business=harbor&menuId=${encodeURIComponent(menuId)}`,{method:'DELETE',headers:{cookie:admin.cookie,'x-csrf-token':admin.csrf}});assert.equal(response.status,200);assert.deepEqual(await response.json(),{menuId,removed:true});
+  assert.equal((await request(`/api/menu-image?business=harbor&menuId=${encodeURIComponent(menuId)}`,{headers:{cookie:cashier.cookie}})).status,404);
+  assert.deepEqual(app.db.prepare("SELECT action FROM audit_events WHERE action LIKE 'Menu image %' ORDER BY rowid").all().map(row=>row.action),[`Menu image added for ${menuId}`,`Menu image removed for ${menuId}`]);
+});
+
 test('configures tenant thermal printers and print routing with scoped admin mutations',async()=>{
   assert.deepEqual(app.db.prepare('PRAGMA table_info(tenant_printers)').all().map(column=>column.name),['id','business_id','name','host','port','paper_width','enabled','created_at']);
   const admin=await login('admin.harbor'),gardenAdmin=await login('admin.garden'),cashier=await login('cashier.harbor'),manager=await login('manager.harbor');
