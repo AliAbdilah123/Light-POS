@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-22 — Logout route reset
+
+- Sign out now replaces the current browser location with `/`, so the next user starts from their role dashboard instead of inheriting the previous user's page.
+- Updated the public E2E login selector to distinguish the password input from its accessible show-password button.
+
 ## 2026-11-22 — Tablet sidebar logout visibility
 
 - Fixed the navigation sheet height to follow the visible dynamic viewport, keeping **Sign out** reachable when browser chrome reduces the usable height on unfolded tablets.

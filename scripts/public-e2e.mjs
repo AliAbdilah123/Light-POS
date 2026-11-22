@@ -20,7 +20,7 @@ try{
     page.on('pageerror',error=>errors.push(`page: ${error.message}`));
     page.on('response',response=>{if(response.status()>=400&&!(response.status()===401&&response.url().endsWith('/api/session')))errors.push(`http ${response.status()}: ${response.url()}`)});
     await page.goto(base,{waitUntil:'networkidle'});
-    await page.getByLabel('Username').fill(username);await page.getByLabel('Password').fill(password);await page.getByRole('button',{name:'Sign in'}).click();
+    await page.getByLabel('Username').fill(username);await page.getByRole('textbox',{name:'Password'}).fill(password);await page.getByRole('button',{name:'Sign in'}).click();
     await assertVisible(page.getByRole('heading',{name:landing[role]}),`${username} landing`);
     const selector=page.getByRole('combobox',{name:'Business'}),businessName=business==='all'?'All businesses':businesses[business].label;assert.equal(await selector.inputValue(),businessName,`${username} tenant indicator`);
     await page.goto(new URL(markerRoute[role],base).href,{waitUntil:'networkidle'});

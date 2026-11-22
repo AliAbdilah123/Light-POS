@@ -1,7 +1,7 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import {act,cleanup,fireEvent,render,screen,waitFor,within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import {MemoryRouter} from 'react-router-dom';
+import {MemoryRouter,useLocation} from 'react-router-dom';
 import {App} from './App';
 import type {Role} from './domain';
 import type {Data} from './store';
@@ -50,7 +50,8 @@ const fetchMock=vi.fn(async(input:RequestInfo|URL,options:RequestInit={})=>{cons
   }
   return json({error:'Not found.'},404);
 });
-const renderApp=async(path:string)=>{render(<MemoryRouter initialEntries={[path]}><App/></MemoryRouter>);await waitFor(()=>expect(screen.queryByLabelText('Loading session')).not.toBeInTheDocument())};
+const Location=()=>{const location=useLocation();return <div data-testid="location">{location.pathname}</div>};
+const renderApp=async(path:string)=>{render(<MemoryRouter initialEntries={[path]}><App/><Location/></MemoryRouter>);await waitFor(()=>expect(screen.queryByLabelText('Loading session')).not.toBeInTheDocument())};
 
 beforeEach(()=>{serverState=undefined;revision=1;authenticated=true;conflict=undefined;paymentQrConfigured=false;menuImages={};menuImportError='';printerFixtures=[];printSettingsFixture={receiptPrinterId:null,kitchenPrinterId:null,autoPrintReceipt:true,autoPrintKitchen:false,receiptHeader:''};printRequests=[];tenantFixtures=[{id:'harbor',name:'Harbor Café',location:'Balikpapan',active:true},{id:'garden',name:'Garden Table',location:'Samarinda',active:false},{id:'north',name:'North Bakehouse',location:'Menteng',active:true}];userFixtures=[{id:'u1',displayName:'Zara Cashier',username:'zara',profileId:'system:cashier',active:true},{id:'u2',displayName:'Adi Manager',username:'adi',profileId:'custom-manager',active:false}];vi.stubGlobal('fetch',fetchMock);fetchMock.mockClear()});
 afterEach(()=>{vi.useRealTimers();cleanup();localStorage.clear();vi.restoreAllMocks();vi.unstubAllGlobals()});
@@ -63,6 +64,8 @@ describe('shadcn page controls',()=>{
 });
 
 describe('representative workflows',()=>{
+  it('resets the route on logout',async()=>{localStorage.setItem('pos-role','admin');await renderApp('/admin/users');await userEvent.click(screen.getByRole('button',{name:/sign out/i}));expect(await screen.findByTestId('location')).toHaveTextContent(/^\/$/)});
+
   it('puts messages in the header and accessible logout in the sidebar for every role',async()=>{for(const role of ['cashier','manager','admin','superadmin','kitchen'] as const){cleanup();authenticated=true;serverState=undefined;localStorage.setItem('pos-role',role);await renderApp('/');expect(within(document.querySelector('.topbar')!).getByRole('button',{name:/Messages \(\d+ unread\)/})).toBeInTheDocument();await userEvent.click(screen.getByRole('button',{name:'Open navigation'}));const sidebar=screen.getByRole('dialog',{name:'Navigation'});expect(within(sidebar).getByRole('navigation',{name:`${role} navigation`})).toBeInTheDocument();expect(within(sidebar).getByRole('button',{name:/sign out|logout/i})).toBeInTheDocument();expect(within(document.querySelector('.topbar')!).queryByRole('button',{name:/sign out|logout/i})).not.toBeInTheDocument();await userEvent.click(within(sidebar).getByRole('button',{name:/sign out|logout/i}));expect(await screen.findByRole('heading',{name:'Sign in to your workspace'})).toBeInTheDocument()}});
 
   it('opens persisted messages, reports unread state, marks read, and dismisses accessibly',async()=>{
