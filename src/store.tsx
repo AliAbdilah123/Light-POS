@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import {createContext,useContext,useEffect,useReducer,useRef,useState,type ReactNode} from 'react';
-import {calculateTotals,cartReducer,menuForSession,type Capability,type CartAction,type CartLine,type Coupon,type Expense,type Experiment,type InventoryItem,type InventoryMovement,type Leave,type MenuItem,type MenuScope,type Message,type Note,type Order,type OrderType,type Role,type ServiceMode,type Shift,type ShiftSession,type Sop,type Staff,type Table,type TableStatus} from './domain';
+import {calculateTotals,cartReducer,menuForSession,roleForSession,type Capability,type CartAction,type CartLine,type Coupon,type Expense,type Experiment,type InventoryItem,type InventoryMovement,type Leave,type MenuItem,type MenuScope,type Message,type Note,type Order,type OrderType,type Role,type ServiceMode,type Shift,type ShiftSession,type Sop,type Staff,type Table,type TableStatus} from './domain';
 import {Eye,EyeOff} from 'lucide-react';
 import {Button} from './components/ui/button';
 import {Card} from './components/ui/card';
@@ -83,6 +83,6 @@ export function StoreProvider({children}:{children:ReactNode}){
   };
   const setTableStatus=(ids:string[],status:TableStatus)=>{if(!ids.length)return;update(d=>({...d,tables:d.tables.map(t=>ids.includes(t.id)?{...t,status}:t)}),`Table ${ids.join(', ')} marked ${status.toLowerCase()}`)};
   const sessionMenus=menuForSession(data.menus,data.experiments);
-  return <Context.Provider value={{role:session.role,user:session,business,setBusiness,tenants,reloadTenants,theme,toggleTheme:()=>setTheme(t=>t==='dark'?'light':'dark'),data,sessionMenus,update,whenSaved:()=>queue.current,cart,dispatch,service,setService,tableIds,setTableIds,coupon,setCoupon,totals,completeOrder,clearCart,activeShift,setTableStatus,logout,syncError,reload:()=>loadState(session,business),writable:business!=='all'}}>{syncError&&<div className="sync-banner" role="alert">{syncError} <button onClick={()=>void loadState(session,business)}>Reload</button></div>}{children}</Context.Provider>;
+  return <Context.Provider value={{role:roleForSession(session.role,session.capabilities),user:session,business,setBusiness,tenants,reloadTenants,theme,toggleTheme:()=>setTheme(t=>t==='dark'?'light':'dark'),data,sessionMenus,update,whenSaved:()=>queue.current,cart,dispatch,service,setService,tableIds,setTableIds,coupon,setCoupon,totals,completeOrder,clearCart,activeShift,setTableStatus,logout,syncError,reload:()=>loadState(session,business),writable:business!=='all'}}>{syncError&&<div className="sync-banner" role="alert">{syncError} <button onClick={()=>void loadState(session,business)}>Reload</button></div>}{children}</Context.Provider>;
 }
 export const useStore=()=>{const context=useContext(Context);if(!context)throw Error('Store missing');return context};

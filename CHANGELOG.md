@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-22 — Navigation follows assigned access profile
+
+- Fixed users assigned an Admin, Manager, Kitchen, or Display access profile still seeing navigation for their stale legacy role. The active UI role now follows the session capabilities, while preserving Superadmin.
+- Added regression coverage for an Admin profile assigned to a user whose legacy role remains Cashier.
+
 - Grouped the role feature-permission checklist to match navigation and covered every app capability; moved Tenants into a Superadmin navigation group.
 
 ## 2026-11-22 — Logout route reset
