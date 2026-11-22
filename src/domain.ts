@@ -4,7 +4,19 @@ const adminCapabilities:Capability[]=['cashierDashboard','createOrder','cashierP
 export const SYSTEM_PROFILES={cashier:{id:'system:cashier',name:'Cashier',capabilities:['cashierDashboard','createOrder','cashierPeople','manageNotes','manageOrders','viewSeats'] as Capability[]},manager:{id:'system:manager',name:'Manager',capabilities:['managerDashboard','viewRevenue','manageExpenses','manageInventory','viewProfitability','runSop','manageOrders','viewSeats','approveLeave'] as Capability[]},admin:{id:'system:admin',name:'Admin',capabilities:adminCapabilities},kitchen:{id:'system:kitchen',name:'Kitchen',capabilities:['viewKitchen'] as Capability[]},display:{id:'system:display',name:'Display',capabilities:['viewDisplay'] as Capability[]}} as const;
 export type MenuScope={mode:'all'|'limited';categoryIds:string[];itemIds:string[]};
 export const hasCapability=(capabilities:readonly Capability[],capability:Capability)=>capabilities.includes(capability);
-export type FeaturePermission={label:string;view:Capability;edit?:Capability};export const FEATURE_ROWS:FeaturePermission[]=[{label:'Orders',view:'cashierDashboard',edit:'manageOrders'},{label:'People',view:'cashierPeople',edit:'adminStaff'},{label:'Leave approvals',view:'approveLeave'},{label:'Expenses',view:'manageExpenses'},{label:'Inventory',view:'manageInventory'},{label:'Catalog',view:'manageCatalog'},{label:'Operations',view:'adminOperations'},{label:'SOP',view:'runSop',edit:'adminSop'},{label:'Roles',view:'viewAccessProfiles',edit:'editAccessProfiles'}];
+export type FeaturePermission={label:string;view:Capability;edit?:Capability};
+export type FeaturePermissionGroup={label:string;features:FeaturePermission[]};
+export const FEATURE_GROUPS:FeaturePermissionGroup[]=[
+  {label:'Today',features:[{label:'Cashier dashboard',view:'cashierDashboard'}]},
+  {label:'Overview',features:[{label:'Manager dashboard',view:'managerDashboard'},{label:'Portfolio',view:'adminDashboard'},{label:'Revenue',view:'viewRevenue'},{label:'Insights',view:'adminInsights'}]},
+  {label:'Service',features:[{label:'New order',view:'createOrder'},{label:'Orders',view:'manageOrders'},{label:'Seats',view:'viewSeats'},{label:'Shift & requests',view:'cashierPeople'},{label:'Leave approvals',view:'approveLeave'},{label:'Notes',view:'manageNotes'},{label:'Run SOP & notes',view:'runSop'}]},
+  {label:'Operations',features:[{label:'Expenses',view:'manageExpenses'},{label:'Inventory & recipes',view:'manageInventory'},{label:'Profitability',view:'viewProfitability'},{label:'Staff & shifts',view:'adminStaff'},{label:'Targets & schedule',view:'adminOperations'}]},
+  {label:'Catalogue',features:[{label:'Catalogue management',view:'manageCatalog'}]},
+  {label:'Administration',features:[{label:'SOP templates',view:'adminSop'},{label:'Users & roles',view:'viewAccessProfiles',edit:'editAccessProfiles'}]},
+  {label:'Kitchen',features:[{label:'Kitchen display',view:'viewKitchen'}]},
+  {label:'Display',features:[{label:'Menu display',view:'viewDisplay'}]},
+];
+export const FEATURE_ROWS=FEATURE_GROUPS.flatMap(group=>group.features);
 export function setCapability(current:readonly Capability[],capability:Capability,checked:boolean):Capability[]{const row=FEATURE_ROWS.find(r=>r.view===capability||r.edit===capability),next=new Set(current);if(checked){next.add(capability);if(row?.edit===capability&&row.view)next.add(row.view)}else{next.delete(capability);if(row?.view===capability&&row.edit)next.delete(row.edit)}return[...next]}
 export function menuAllowed(scope:MenuScope,item:MenuItem,catalog:MenuItem[]):boolean{if(scope.mode==='all')return true;if(!scope.categoryIds.includes(item.category)&&!scope.itemIds.includes(item.id))return false;if((item.kind||'item')!=='bundle')return true;const version=item.versions?.find(v=>v.version===item.currentVersion);return !!version?.components?.every(component=>{const child=catalog.find(entry=>entry.id===component.menuId);return child&&!child.archived&&menuAllowed(scope,child,catalog)})}
 export const capabilitiesForRole=(role:Role):readonly Capability[]=>role==='superadmin'?adminCapabilities:SYSTEM_PROFILES[role].capabilities;

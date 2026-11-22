@@ -164,7 +164,7 @@ const pageGroups: Record<string, string> = {
   '/admin/payment-qr': 'Administration',
   '/admin/printers': 'Administration',
   '/admin/users-access': 'Administration',
-  '/admin/tenants': 'Administration',
+  '/admin/tenants': 'Superadmin',
   '/manager/dashboard': 'Overview',
   '/manager/revenue': 'Overview',
   '/manager/requests': 'Service',
@@ -445,7 +445,7 @@ function Navigation({
 }) {
   const entries: readonly NavEntry[] = nav[navRole];
   const extras: readonly NavEntry[] = global
-    ? [['Tenants', '/admin/tenants', Building2] as const]
+    ? ['Superadmin', ['Tenants', '/admin/tenants', Building2] as const]
     : [];
   const items: readonly NavEntry[] = [...entries, ...extras];
   return (

@@ -1,5 +1,7 @@
 # Changelog
 
+- Grouped the role feature-permission checklist to match navigation and covered every app capability; moved Tenants into a Superadmin navigation group.
+
 ## 2026-11-22 — Logout route reset
 
 - Sign out now replaces the current browser location with `/`, so the next user starts from their role dashboard instead of inheriting the previous user's page.

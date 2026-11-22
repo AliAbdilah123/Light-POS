@@ -7,7 +7,7 @@ import { NativeSelect as Select } from '../components/ui/native-select';
 import { DataTable, type DataTableColumn } from '../components/DataTable';
 import { Metric, FormActions, Modal, PageHead } from '../components/molecules';
 import {
-  FEATURE_ROWS,
+  FEATURE_GROUPS,
   setCapability,
   type Capability,
   type MenuScope,
@@ -589,8 +589,11 @@ export function AdminUsersAccessPage() {
             <fieldset>
               <legend>Feature permissions</legend>
               <p>Edit automatically requires View.</p>
-              {FEATURE_ROWS.map(({ label, view, edit }) => (
-                <div className="status-row" key={label}>
+              {FEATURE_GROUPS.map((group) => (
+                <section key={group.label} aria-labelledby={`permission-${group.label}`}>
+                  <h4 id={`permission-${group.label}`}>{group.label}</h4>
+                  {group.features.map(({ label, view, edit }) => (
+                <div className="status-row" key={view}>
                   <strong>{label}</strong>
                   {edit ? (
                     <>
@@ -622,6 +625,8 @@ export function AdminUsersAccessPage() {
                     </label>
                   )}
                 </div>
+                  ))}
+                </section>
               ))}
             </fieldset>
             <fieldset>
