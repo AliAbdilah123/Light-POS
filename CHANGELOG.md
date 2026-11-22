@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-22 — Tablet sidebar logout visibility
+
+- Fixed the navigation sheet height to follow the visible dynamic viewport, keeping **Sign out** reachable when browser chrome reduces the usable height on unfolded tablets.
+
 ## 2026-11-18 — Menu photos, expense-to-stock, inventory table, layout fixes
 
 - Added a per-menu photo: tenant admins upload, replace, or remove a PNG/JPEG/WebP (max 2 MB) from the menu editor. Photos are stored in a new `menu_images` table keyed by menu id and tenant, served by `GET /api/menu-image` with `nosniff` and private caching, listed by `GET /api/menu-images`, and mutated only by admins with `manageCatalog` plus CSRF. Photos appear on catalog cards, order-entry tiles, and the display menu; the emoji icon remains the fallback.
