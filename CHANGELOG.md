@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-24 — Offline-first POS
+
+- Added device-local authenticated session and tenant snapshots, a durable mutation outbox (compacted to one cumulative snapshot per user and tenant without changing the original revision guard), offline boot for a previously authenticated user, reconnect/manual sync status, and visible conflict handling. Logout purges the current user's cached data.
+- Added authenticated, CSRF-protected, idempotent SQLite sync operations with revision conflict detection and session-owner revalidation before replay; stale full snapshots never overwrite server state, and discarded conflicts cannot be reapplied.
+- Added a build-versioned, base-path-safe service worker and web manifest that cache the application shell and immutable assets (never API responses), and disabled online-only admin surfaces while offline.
+
+
 ## 2026-11-22 — Navigation follows assigned access profile
 
 - Fixed users assigned an Admin, Manager, Kitchen, or Display access profile still seeing navigation for their stale legacy role. The active UI role now follows the session capabilities, while preserving Superadmin.

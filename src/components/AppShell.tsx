@@ -33,7 +33,7 @@ import { Button } from './ui/button';
 import { dashboardPath, type Role } from '../domain';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
 
-type NavEntry = string | readonly [string, string, LucideIcon];
+type NavEntry = string | readonly [string, string, LucideIcon, boolean?];
 type NavRole = 'cashier' | 'manager' | 'admin' | 'kitchen' | 'display';
 
 const nav: Record<NavRole, readonly NavEntry[]> = {
@@ -83,16 +83,16 @@ const nav: Record<NavRole, readonly NavEntry[]> = {
     ['Targets & schedule', '/admin/operations', Target],
     'Catalogue',
     ['Menu catalog', '/admin/menu', Coffee],
-    ['Menu lab', '/admin/menu-lab', FlaskConical],
+    ['Menu lab', '/admin/menu-lab', FlaskConical, true],
     ['Experiments', '/admin/experiments', FlaskConical],
     ['Order types', '/admin/order-types', ClipboardList],
     ['Tables', '/admin/tables', Table2],
     ['Coupons', '/admin/coupons', TicketPercent],
     'Administration',
     ['SOP templates', '/admin/sop', BookCheck],
-    ['Payment QR', '/admin/payment-qr', WalletCards],
-    ['Printers & printing', '/admin/printers', PrinterIcon],
-    ['Users & roles', '/admin/users-access', Settings2],
+    ['Payment QR', '/admin/payment-qr', WalletCards, true],
+    ['Printers & printing', '/admin/printers', PrinterIcon, true],
+    ['Users & roles', '/admin/users-access', Settings2, true],
   ],
   kitchen: [['Kitchen', '/kitchen/dashboard', ClipboardList]],
   display: [['Menu display', '/display/dashboard', Coffee]],
@@ -194,6 +194,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     data,
     update,
     logout,
+    online,
+    pendingCount,
+    syncing,
+    conflicts,
+    sync,
   } = useStore();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(
@@ -283,6 +288,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <strong>{pageTitle}</strong>
         </div>
         <div className="top-context">
+          <button className="sync-status" onClick={() => void sync()} aria-label="Sync offline changes">
+            {conflicts.length ? 'Conflict' : syncing ? 'Syncing' : pendingCount ? `Pending ${pendingCount}` : online ? 'Online' : 'Offline'}
+          </button>
           <button
             ref={trigger}
             className="icon-button message-trigger"
@@ -387,6 +395,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             business={business}
             setBusiness={setBusiness}
             tenants={allowed}
+            online={online}
             onNavigate={() => setOpen(false)}
           />
         </SheetContent>
@@ -403,6 +412,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           business={business}
           setBusiness={setBusiness}
           tenants={allowed}
+          online={online}
           collapsed={collapsed}
           onToggleCollapse={() => setCollapsed((value) => !value)}
         />
@@ -425,6 +435,7 @@ function Navigation({
   business,
   setBusiness,
   tenants,
+  online,
   onNavigate,
   collapsed = false,
   onToggleCollapse,
@@ -439,6 +450,7 @@ function Navigation({
   business: string;
   setBusiness: (business: string) => void;
   tenants: Tenant[];
+  online: boolean;
   onNavigate?: () => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -500,17 +512,19 @@ function Navigation({
                 {entry}
               </span>
             );
-          const [name, to, Icon] = entry;
+          const [name, to, Icon, onlineOnly] = entry;
+          const offlineDisabled = onlineOnly && !online;
           return (
             <NavLink
               key={to}
               to={to}
-              onClick={onNavigate}
-              title={collapsed ? name : undefined}
+              onClick={offlineDisabled ? (event) => event.preventDefault() : onNavigate}
+              aria-disabled={offlineDisabled}
+              title={offlineDisabled ? `${name} requires an internet connection` : collapsed ? name : undefined}
               className={({ isActive }) =>
-                isActive || (to === '/orders' && pathname.startsWith('/orders'))
+                `${isActive || (to === '/orders' && pathname.startsWith('/orders'))
                   ? 'active'
-                  : ''
+                  : ''}${offlineDisabled ? ' nav-disabled' : ''}`
               }
             >
               <Icon aria-hidden="true" />

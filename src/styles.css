@@ -159,6 +159,7 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .topbar-context .divider { width: 1px; height: 18px; background: var(--line); }
+.sync-status{border:1px solid var(--border);border-radius:999px;background:var(--card);color:var(--foreground);padding:.35rem .65rem;font:inherit}
 .top-context { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 .top-context .field { display: none; }
 
@@ -236,6 +237,7 @@
   border-color: transparent;
   font-weight: 600;
 }
+.sidebar nav a.nav-disabled { opacity: 0.45; pointer-events: none; text-decoration: line-through; }
 .sidebar nav .nav-group {
   display: block; padding: 12px 10px 4px;
   font-size: 0.65rem; font-weight: 600; letter-spacing: 0.11em;
