@@ -149,3 +149,4 @@ UX and feature audit fixes (branch `fix/ux-audit-critical-high`). Full report: `
 # 2026-11-25
 
 - Added separate Items and Bundles catalog tabs, custom-priced bundle creation, and accessible 30-day sold-menu stacked revenue charts to Menu Catalog and Revenue.
+- Moved the Revenue sold-menu chart below Revenue trend and synchronized it with the 7-day, 30-day, and custom period filters.

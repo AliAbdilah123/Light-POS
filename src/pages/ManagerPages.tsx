@@ -224,7 +224,6 @@ export function RevenuePage() {
         title="Revenue"
         description="Period-aware revenue with definition and freshness context."
       />
-      <SoldMenuRevenueChart orders={s.data.orders} menus={s.data.menus} />
       <div className="toolbar">
         <div className="segment" role="group" aria-label="Revenue period">
           {(
@@ -317,6 +316,7 @@ export function RevenuePage() {
           .
         </p>
       </Card>
+      {!invalid && <SoldMenuRevenueChart orders={inRange} menus={s.data.menus} start={start} end={end} />}
     </>
   );
 }

@@ -244,9 +244,9 @@ describe('representative workflows',()=>{
   });
 
   it('shows the same 30-day sold-menu chart above catalog tabs and on revenue',async()=>{
-    localStorage.setItem('pos-role','admin');localStorage.setItem('light-pos-demo-v1',JSON.stringify({orders:[{id:'chart-order',businessId:'harbor',createdAt:new Date().toISOString(),service:'Takeaway',status:'Completed',payment:'Cash',lines:[{id:'chart-line',menuId:'cap',name:'Cappuccino',price:30000,qty:2}],subtotal:60000,discount:0,tax:6000,total:66000}]}));
+    const old=new Date();old.setDate(old.getDate()-20);localStorage.setItem('pos-role','admin');localStorage.setItem('light-pos-demo-v1',JSON.stringify({orders:[{id:'chart-order',businessId:'harbor',createdAt:new Date().toISOString(),service:'Takeaway',status:'Completed',payment:'Cash',lines:[{id:'chart-line',menuId:'cap',name:'Cappuccino',price:30000,qty:2}],subtotal:60000,discount:0,tax:6000,total:66000},{id:'old-chart-order',businessId:'harbor',createdAt:old.toISOString(),service:'Takeaway',status:'Completed',payment:'Cash',lines:[{id:'old-chart-line',menuId:'cross',name:'Butter croissant',price:22000,qty:1}],subtotal:22000,discount:0,tax:2200,total:24200}]}));
     await renderApp('/admin/menu');const chart=await screen.findByRole('img',{name:/sold menu revenue for the last 30 days/i});expect(chart).toHaveTextContent('Cappuccino');expect(chart.compareDocumentPosition(screen.getByRole('tablist'))&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    cleanup();await renderApp('/admin/revenue');expect(await screen.findByRole('img',{name:/sold menu revenue for the last 30 days/i})).toHaveTextContent('Cappuccino');
+    cleanup();await renderApp('/admin/revenue');const trend=screen.getByRole('img',{name:/Revenue by day/}),sold=await screen.findByRole('img',{name:/sold menu revenue for the selected period/i});expect(trend.compareDocumentPosition(sold)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();expect(sold).toHaveTextContent('Cappuccino');expect(sold).not.toHaveTextContent('Butter croissant');await userEvent.click(screen.getByRole('button',{name:'Last 30 days'}));expect(screen.getByRole('img',{name:/sold menu revenue for the selected period/i})).toHaveTextContent('Butter croissant');
   });
 
   it('creates a bundle, shows its composition, sells at its custom price, and snapshots the sale',async()=>{
