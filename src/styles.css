@@ -852,6 +852,25 @@ button.table-row {
 .seat-detail > small { line-height: 1.45; }
 
 /* ---------- Charts ---------- */
+.sold-menu-card { margin-bottom: 18px; overflow: visible; }
+.sold-menu-summary { display: flex; gap: 24px; }
+.sold-menu-summary span, .sold-menu-summary small, .sold-menu-summary strong { display: block; }
+.sold-menu-summary small { color: var(--muted); font-size: .7rem; }
+.sold-menu-summary strong { font-size: 1rem; }
+.sold-menu-scroll { overflow-x: auto; padding: 38px 2px 0; }
+.sold-menu-chart { height: 220px; min-width: 720px; display: flex; align-items: end; gap: 5px; border-bottom: 1px solid var(--line); }
+.sold-menu-day { height: 100%; flex: 1; display: flex; flex-direction: column; justify-content: end; align-items: center; gap: 7px; }
+.sold-menu-day > small { color: var(--muted); font-size: .6rem; white-space: nowrap; }
+.sold-menu-stack { width: min(22px, 85%); min-height: 2px; display: flex; flex-direction: column-reverse; justify-content: start; }
+.sold-menu-segment { width: 100%; min-height: 2px; padding: 0; border: 0; position: relative; cursor: pointer; }
+.sold-menu-segment:first-child { border-radius: 3px 3px 0 0; }
+.sold-menu-segment > span { display: none; position: absolute; z-index: 20; left: 50%; bottom: calc(100% + 7px); transform: translateX(-50%); width: max-content; max-width: 220px; padding: 8px 10px; border-radius: 8px; background: var(--text); color: var(--bg); text-align: left; font-size: .72rem; box-shadow: var(--shadow); }
+.sold-menu-segment:hover > span, .sold-menu-segment:focus-visible > span { display: block; }
+.sold-menu-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 14px; color: var(--muted); font-size: .72rem; }
+.sold-menu-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sold-menu-legend i { width: 8px; height: 8px; border-radius: 50%; }
+.catalog-tabs { margin: 20px 0 16px; width: max-content; }
+@media (max-width: 600px) { .sold-menu-summary { width: 100%; justify-content: space-between; } }
 .bar-chart, .hour-chart {
   height: 250px; display: flex; align-items: end; gap: clamp(8px, 2.4vw, 26px);
   border-bottom: 1px solid var(--line); padding: 12px; justify-content: space-around;

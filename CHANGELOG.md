@@ -146,3 +146,6 @@ UX and feature audit fixes (branch `fix/ux-audit-critical-high`). Full report: `
 - Fixed mobile alignment for admin filters, result counts, user forms, checkboxes, and tables.
 - Removed frontend sample-state controls and frontend tenant fixture initialization; tenant labels now load from the API for authorized users.
 - Kept tenant-admin role creation and editing backed by tenant-scoped access-profile APIs.
+# 2026-11-25
+
+- Added separate Items and Bundles catalog tabs, custom-priced bundle creation, and accessible 30-day sold-menu stacked revenue charts to Menu Catalog and Revenue.

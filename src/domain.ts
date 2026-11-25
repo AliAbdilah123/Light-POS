@@ -65,6 +65,16 @@ export const localHour=(value:string|Date)=>Number(new Intl.DateTimeFormat('en-G
 export const localWeekday=(value:string|Date)=>new Intl.DateTimeFormat('en-US',{timeZone:BUSINESS_TZ,weekday:'long'}).format(new Date(value));
 export const localDateTime=(value:string|Date)=>new Intl.DateTimeFormat('id-ID',{timeZone:BUSINESS_TZ,dateStyle:'medium',timeStyle:'short'}).format(new Date(value));
 export const localDate=(s:string)=>new Intl.DateTimeFormat('id-ID',{timeZone:BUSINESS_TZ,day:'numeric',month:'short',year:'numeric'}).format(new Date(s));
+export type SoldMenuRevenueSegment={menuId:string;name:string;quantity:number;revenue:number};
+export type SoldMenuRevenueDay={day:string;total:number;quantity:number;segments:SoldMenuRevenueSegment[]};
+export function soldMenuRevenue(orders:Order[],menus:MenuItem[],days=30,now=new Date()):SoldMenuRevenueDay[]{
+  const end=localDay(now),cursor=new Date(`${end}T12:00:00Z`),rows:SoldMenuRevenueDay[]=[];
+  for(let i=days-1;i>=0;i--){const date=new Date(cursor);date.setUTCDate(date.getUTCDate()-i);rows.push({day:date.toISOString().slice(0,10),total:0,quantity:0,segments:[]})}
+  const byDay=new Map(rows.map(row=>[row.day,row]));
+  for(const order of orders){if(order.status!=='Completed')continue;const row=byDay.get(localDay(order.createdAt));if(!row)continue;const grouped=new Map(row.segments.map(segment=>[segment.menuId,segment]));for(const line of order.lines){const found=grouped.get(line.menuId),revenue=line.price*line.qty;if(found){found.quantity+=line.qty;found.revenue+=revenue}else{const segment={menuId:line.menuId,name:line.name||menus.find(menu=>menu.id===line.menuId)?.name||line.menuId,quantity:line.qty,revenue};row.segments.push(segment);grouped.set(line.menuId,segment)}row.total+=revenue;row.quantity+=line.qty}}
+  for(const row of rows)row.segments.sort((a,b)=>b.revenue-a.revenue||a.name.localeCompare(b.name));
+  return rows
+}
 type ConvertUnit='kg'|'g'|'l'|'ml'|'liter';
 export function unitConvert(quantity:number,from:ConvertUnit,to:ConvertUnit) {
   const norm=(unit:ConvertUnit):'kg'|'g'|'l'|'ml'=>unit==='liter'?'l':unit;

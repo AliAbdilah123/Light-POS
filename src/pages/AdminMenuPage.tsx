@@ -19,6 +19,7 @@ import {
 import { useStore } from '../store';
 import { MenuPhotoImport } from '../components/MenuPhotoImport';
 import { MenuImage } from '../components/MenuImage';
+import { SoldMenuRevenueChart } from '../components/SoldMenuRevenueChart';
 import {
   deleteMenuImage,
   menuImageUrl,
@@ -38,6 +39,7 @@ export function AdminMenuPage() {
     [variations, setVariations] = useState<VariationGroup[]>([]),
     [error, setError] = useState(''),
     [filter, setFilter] = useState<Filter>('Active'),
+    [tab, setTab] = useState<'items' | 'bundles'>('items'),
     [query, setQuery] = useState(''),
     [history, setHistory] = useState<MenuItem>(),
     [archiving, setArchiving] = useState<MenuItem>(),
@@ -53,6 +55,8 @@ export function AdminMenuPage() {
     ),
     filtered = s.data.menus.filter(
       (m) =>
+        ((tab === 'items' && (m.kind || 'item') === 'item') ||
+          (tab === 'bundles' && m.kind === 'bundle')) &&
         (filter === 'All' ||
           (filter === 'Pending review'
             ? m.reviewStatus === 'pending'
@@ -233,20 +237,26 @@ export function AdminMenuPage() {
         description="Create immutable menu versions and control catalog availability."
         action={
           <div className="form-actions">
-            <Button onClick={() => setImporting(true)}>Import from photos</Button>
+            {tab === 'items' && <Button onClick={() => setImporting(true)}>Import from photos</Button>}
             <Button
               variant="primary"
               onClick={() => {
                 close();
+                setKind(tab === 'bundles' ? 'bundle' : 'item');
                 setEditing('new');
               }}
             >
-              Add menu
+              {tab === 'bundles' ? 'Create bundle' : 'Add menu'}
             </Button>
           </div>
         }
       />
       {importing && <MenuPhotoImport onClose={() => setImporting(false)} />}
+      <SoldMenuRevenueChart orders={s.data.orders} menus={s.data.menus} />
+      <div className="segment tabs catalog-tabs" role="tablist" aria-label="Menu catalog type">
+        <button role="tab" aria-selected={tab === 'items'} onClick={() => setTab('items')}>Items ({s.data.menus.filter(m => (m.kind || 'item') === 'item').length})</button>
+        <button role="tab" aria-selected={tab === 'bundles'} onClick={() => setTab('bundles')}>Bundles ({s.data.menus.filter(m => m.kind === 'bundle').length})</button>
+      </div>
       <div className="toolbar">
         <div className="segment catalog-filter" aria-label="Menu status filter">
           {(['Active', 'Pending review', 'Archived', 'All'] as Filter[]).map((x) => (
@@ -273,18 +283,7 @@ export function AdminMenuPage() {
             </div>
           )}
           <form key={editing || 'new'} onSubmit={save}>
-            <Select
-              label="Menu kind"
-              value={kind}
-              onChange={(e) => {
-                setKind(e.target.value as 'item' | 'bundle');
-                setError('');
-              }}
-              disabled={!!item}
-            >
-              <option value="item">Item</option>
-              <option value="bundle">Bundle</option>
-            </Select>
+
             <Input label="Menu name" name="name" defaultValue={current?.name} />
             <Input
               label="Description"
@@ -297,7 +296,7 @@ export function AdminMenuPage() {
               defaultValue={current?.category}
             />
             <NumberInput
-              label="Price"
+              label={kind === 'bundle' ? 'Bundle price' : 'Price'}
               name="price"
               min={1}
               defaultValue={current?.price}

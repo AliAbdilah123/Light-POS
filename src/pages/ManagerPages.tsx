@@ -28,6 +28,7 @@ import { Input } from '../components/ui/input';
 import { NumberInput } from '../components/ui/number-input';
 import { NativeSelect as Select } from '../components/ui/native-select';
 import { Progress } from '../components/ui/progress';
+import { SoldMenuRevenueChart } from '../components/SoldMenuRevenueChart';
 import {
   FormActions,
   Metric,
@@ -223,6 +224,7 @@ export function RevenuePage() {
         title="Revenue"
         description="Period-aware revenue with definition and freshness context."
       />
+      <SoldMenuRevenueChart orders={s.data.orders} menus={s.data.menus} />
       <div className="toolbar">
         <div className="segment" role="group" aria-label="Revenue period">
           {(
