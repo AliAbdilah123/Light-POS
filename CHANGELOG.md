@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-11-25
+- Split production JavaScript into React, UI, and application chunks so each bundle stays below Vite's 500 kB warning threshold.
 - Added custom menu creation during order entry. New items persist to the tenant catalog, are added to the active order, and enter an admin pending-review queue.
 
 ## 2026-11-25
