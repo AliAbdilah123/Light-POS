@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-25
+
+- Added 11 parsed menu items from Cilong99's supplied menu image to the `cilong99` tenant across Food, Savory, and Sweet categories, including listed prices, descriptions, and recommendation notes.
+
 ## 2026-11-24 — Offline-first POS
 
 - Added device-local authenticated session and tenant snapshots, a durable mutation outbox (compacted to one cumulative snapshot per user and tenant without changing the original revision guard), offline boot for a previously authenticated user, reconnect/manual sync status, and visible conflict handling. Logout purges the current user's cached data.
