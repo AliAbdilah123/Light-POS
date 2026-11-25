@@ -429,11 +429,11 @@ export function OrderEntry() {
           <form onSubmit={async (e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget), name = String(fd.get('name')).trim(), price = Number(fd.get('price'));
-            if (!name || !Number.isInteger(price) || price <= 0) return setCustomError('Name and a positive whole-IDR price are required.');
+            if (!name || !Number.isSafeInteger(price) || price <= 0 || price > 1_000_000_000) return setCustomError('Name and a positive whole-IDR price up to Rp 1,000,000,000 are required.');
             setCreatingMenuBusy(true); setCustomError('');
             try {
               const result = await request(`/order-menu?business=${encodeURIComponent(s.business)}`, {method:'POST',headers:{'content-type':'application/json','x-csrf-token':s.user.csrfToken},body:JSON.stringify({name,price})});
-              await s.reload(); s.dispatch({type:'add',item:result.menu}); setCreatingMenu(false);
+              s.dispatch({type:'add',item:result.menu}); setCreatingMenu(false); void s.reload().catch(() => undefined);
             } catch (reason) { setCustomError(reason instanceof Error ? reason.message : 'Could not create custom menu.'); }
             finally { setCreatingMenuBusy(false); }
           }}>

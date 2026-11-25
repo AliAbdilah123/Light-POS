@@ -22,7 +22,7 @@ test('lets order creators persist tenant custom menus for explicit admin review'
   assert.equal(response.status,201,JSON.stringify(body));assert.equal(body.menu.name,'Counter Special');assert.equal(body.menu.category,'Custom');assert.equal(body.menu.reviewStatus,'pending');assert.equal(body.menu.createdFrom,'order-entry');
   const fresh=await state(cashier);assert.ok(fresh.body.data.menus.some(item=>item.id===body.menu.id));
   response=await request('/api/order-menu?business=harbor',{method:'POST',headers,body:JSON.stringify({name:'counter special',price:30000})});assert.equal(response.status,409);
-  for(const price of [0,-1,1.5]){response=await request('/api/order-menu?business=harbor',{method:'POST',headers,body:JSON.stringify({name:'Invalid',price})});assert.equal(response.status,400)}
+  for(const price of [0,-1,1.5,Number.MAX_SAFE_INTEGER+1,1000000001]){response=await request('/api/order-menu?business=harbor',{method:'POST',headers,body:JSON.stringify({name:'Invalid',price})});assert.equal(response.status,400)}
   assert.equal((await request('/api/order-menu?business=garden',{method:'POST',headers,body:JSON.stringify({name:'Foreign',price:10000})})).status,403);
   assert.equal((await request('/api/order-menu?business=harbor',{method:'POST',headers:{...headers,'x-csrf-token':'bad'},body:JSON.stringify({name:'Bad csrf',price:10000})})).status,403);
   assert.match(app.db.prepare("SELECT action FROM audit_events WHERE action LIKE 'Custom menu %'").get().action,/Counter Special/);
