@@ -1,0 +1,15 @@
+import {API,request} from '../store';
+import type {CartLine,SelectedVariation,VariationGroup} from '../domain';
+export type RemoteMenu={id:string;name:string;category:string;description:string;price:number;variations:VariationGroup[]};
+export type RemoteRequest={id:string;sessionId:string;businessId:string;tableId:string;tableName:string;status:'pending'|'approved'|'rejected';lines:CartLine[];customerNote:string;createdAt:string;resolvedByName?:string;resolvedAt?:string;rejectReason?:string};
+export type RemoteSession={id:string;businessId:string;tableId:string;tableName:string;status:string;createdByName:string;createdAt:string;expiresAt:string;requests:RemoteRequest[]};
+const guest=async<T>(path:string,options:RequestInit={}):Promise<T>=>{const response=await fetch(`${API}${path}`,options),body=await response.json().catch(()=>({error:'Invalid server response.'}));if(!response.ok)throw Error(body.error||'Request failed.');return body};
+export const getGuestSession=(id:string,token='')=>guest<{active:boolean;reason?:string;business?:{id:string;name:string;location:string};tableName?:string;menu?:RemoteMenu[];last?:RemoteRequest}>(`/remote/session?session=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`);
+export const submitRemoteOrder=(sessionId:string,clientToken:string,lines:{menuId:string;qty:number;variations?:SelectedVariation[];note?:string}[],note:string)=>guest<{request:RemoteRequest;deduped?:boolean}>('/remote/order',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sessionId,clientToken,lines,note})});
+export const getRemoteSessions=(business:string)=>request(`/remote/sessions?business=${encodeURIComponent(business)}`) as Promise<{sessions:RemoteSession[];settings:{defaultMinutes:number}}>; 
+export const createRemoteSession=(business:string,tableId:string,csrf:string)=>request(`/remote/sessions?business=${encodeURIComponent(business)}`,{method:'POST',headers:{'content-type':'application/json','x-csrf-token':csrf},body:JSON.stringify({tableId})}) as Promise<{session:RemoteSession}>;
+export const closeRemoteSession=(id:string,csrf:string)=>request(`/remote/sessions/${encodeURIComponent(id)}/close`,{method:'POST',headers:{'x-csrf-token':csrf}});
+export const resolveRemoteRequest=(id:string,action:'approve'|'reject',csrf:string,reason='')=>request(`/remote/requests/${encodeURIComponent(id)}/${action}`,{method:'POST',headers:{'content-type':'application/json','x-csrf-token':csrf},body:JSON.stringify({reason})});
+export const saveRemoteSettings=(business:string,defaultMinutes:number,csrf:string)=>request(`/remote/settings?business=${encodeURIComponent(business)}`,{method:'PUT',headers:{'content-type':'application/json','x-csrf-token':csrf},body:JSON.stringify({defaultMinutes})});
+export const shareUrl=(sessionId:string)=>new URL(`${import.meta.env.BASE_URL}remote-order/${sessionId}`,location.origin).href;
+export {API};

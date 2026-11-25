@@ -258,3 +258,41 @@ test('aggregate reads de-duplicate tenant ids and shift sessions are single-open
   result=await write(cashier,revision,closed,'Close shift');
   assert.equal(result.response.status,200,JSON.stringify(result.body));
 });
+
+test('remote ordering: session lifecycle, guest submit, approve/reject and expiry',async()=>{
+  const admin=await login('admin.harbor'),staff={cookie:admin.cookie,'x-csrf-token':admin.csrf,'content-type':'application/json'};
+  // default settings read + set default duration
+  let response=await request('/api/remote/settings?business=harbor',{headers:{cookie:admin.cookie}});assert.equal(response.status,200);assert.equal((await response.json()).settings.defaultMinutes,60);
+  response=await request('/api/remote/settings?business=harbor',{method:'PUT',headers:staff,body:JSON.stringify({defaultMinutes:90})});assert.equal(response.status,200);assert.equal((await response.json()).settings.defaultMinutes,90);
+  // cashier without admin cannot change the default but can read
+  const cashier=await login('cashier.harbor'),cashierStaff={cookie:cashier.cookie,'x-csrf-token':cashier.csrf,'content-type':'application/json'};
+  assert.equal((await request('/api/remote/settings?business=harbor',{method:'PUT',headers:cashierStaff,body:JSON.stringify({defaultMinutes:30})})).status,403);
+  // create session on a table
+  const stateBody=await state(admin),table=stateBody.body.data.tables.find(t=>!t.archived&&t.enabled);
+  response=await request('/api/remote/sessions?business=harbor',{method:'POST',headers:staff,body:JSON.stringify({tableId:table.id})});assert.equal(response.status,201);const created=(await response.json()).session;
+  assert.equal(created.tableId,table.id);assert.equal((await request('/api/remote/settings?business=harbor',{headers:{cookie:admin.cookie}})).status,200);
+  // duplicate active session rejected
+  response=await request('/api/remote/sessions?business=harbor',{method:'POST',headers:staff,body:JSON.stringify({tableId:table.id})});assert.equal(response.status,409);
+  // guest reads session without auth
+  response=await request(`/api/remote/session?session=${created.id}`);assert.equal(response.status,200);const guestSession=await response.json();assert.equal(guestSession.active,true);assert.ok(guestSession.menu.length);assert.equal(guestSession.tableName,table.name);
+  const menuItem=guestSession.menu[0];
+  // guest submits an order (no auth)
+  response=await request('/api/remote/order',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sessionId:created.id,clientToken:'device-1',note:'Less ice',lines:[{menuId:menuItem.id,qty:2}]})});assert.equal(response.status,201);const submitted=(await response.json()).request;assert.equal(submitted.status,'pending');assert.equal(submitted.lines[0].qty,2);
+  // duplicate-tap: same token is separate rows, but list shows both; resolve one
+  const pending=await (await request('/api/remote/sessions?business=harbor',{headers:{cookie:cashier.cookie}})).json();assert.equal(pending.sessions[0].requests.length,1);
+  // approve as cashier appends to a Held order
+  response=await request(`/api/remote/requests/${submitted.id}/approve`,{method:'POST',headers:cashierStaff});assert.equal(response.status,200);const approved=(await response.json());
+  assert.equal(approved.request.status,'approved');assert.match(approved.orderId,/^R-/);assert.equal(approved.deduped,false);
+  const after=await state(cashier);const heldOrder=after.body.data.orders.find(o=>o.id===approved.orderId);assert.ok(heldOrder);assert.equal(heldOrder.status,'Held');assert.equal(heldOrder.lines[0].name,menuItem.name);
+  // create + reject a second request
+  response=await request('/api/remote/order',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sessionId:created.id,clientToken:'device-2',lines:[{menuId:menuItem.id,qty:1}]})});assert.equal(response.status,201);const secondReq=(await response.json()).request;
+  response=await request(`/api/remote/requests/${secondReq.id}/reject`,{method:'POST',headers:cashierStaff,body:JSON.stringify({})});assert.equal(response.status,400);
+  response=await request(`/api/remote/requests/${secondReq.id}/reject`,{method:'POST',headers:cashierStaff,body:JSON.stringify({reason:'Kitchen closed'})});assert.equal(response.status,200);const rejected=(await response.json());assert.equal(rejected.request.status,'rejected');assert.equal(rejected.request.rejectReason,'Kitchen closed');
+  // close session blocks further guest orders
+  response=await request(`/api/remote/sessions/${created.id}/close`,{method:'POST',headers:staff});assert.equal(response.status,200);
+  response=await request('/api/remote/order',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sessionId:created.id,lines:[{menuId:menuItem.id,qty:1}]})});assert.equal(response.status,410);
+  // expire a session: guest read reports inactive
+  const expired={...created,id:'expired-session'};
+  app.db.prepare('INSERT INTO remote_sessions VALUES(?,?,?,?,?,?,?,?,?)').run(expired.id,expired.businessId,expired.tableId,expired.tableName,'open',expired.createdBy,expired.createdByName,expired.createdAt,'2020-01-01T00:00:00.000Z');
+  response=await request(`/api/remote/session?session=${expired.id}`);assert.equal(response.status,200);assert.equal((await response.json()).active,false);
+});

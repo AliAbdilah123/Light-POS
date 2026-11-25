@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-25 — Remote table ordering
+- Added expiring per-table remote ordering sessions with one active session per table, printable QR cards, shareable customer links, and an admin-settable tenant default duration (60 minutes by default).
+- Added a guest-only mobile ordering page with no staff navigation, idempotent submissions, and live pending/approved/rejected status; customer submissions never create confirmed orders or reserve stock.
+- Added the cashier Remote Orders queue with required rejection reasons and transactional approval that revalidates current menu price/availability before safely creating or appending to the table's held order.
+- Verified with 31 backend tests, 136 frontend tests, typecheck, lint (zero errors), and production build.
+
 ## 2026-11-25
 - Split production JavaScript into React, UI, and application chunks so each bundle stays below Vite's 500 kB warning threshold.
 - Added custom menu creation during order entry. New items persist to the tenant catalog, are added to the active order, and enter an admin pending-review queue.
