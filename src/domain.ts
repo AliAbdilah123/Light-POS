@@ -33,7 +33,7 @@ export interface VariationOption {id:string;name:string;priceDelta:number}
 export interface VariationGroup {id:string;name:string;required:boolean;options:VariationOption[]}
 export interface SelectedVariation {groupId:string;groupName:string;optionId:string;optionName:string;priceDelta:number}
 export interface MenuVersion {version:number;name:string;description:string;category:string;ingredients:Ingredient[];components?:BundleComponent[];variations?:VariationGroup[];price:number;createdAt:string}
-export interface MenuItem {id:string;kind?:'item'|'bundle';currentVersion?:number;versions?:MenuVersion[];availability?:'available'|'low'|'sold-out';archived?:boolean;icon:string;name:string;category:string;price:number;cost:number;available:boolean}
+export interface MenuItem {id:string;kind?:'item'|'bundle';currentVersion?:number;versions?:MenuVersion[];availability?:'available'|'low'|'sold-out';archived?:boolean;reviewStatus?:'pending'|'reviewed';createdFrom?:'order-entry';icon:string;name:string;category:string;price:number;cost:number;available:boolean}
 export type ExperimentStatus='draft'|'active'|'finalized'|'archived';
 export interface Experiment {id:string;name:string;assumptions:string;menuDrafts:MenuItem[];dailyTargets:Record<string,number>;status:ExperimentStatus;finalizedAt?:string}
 export interface ProjectedIngredient {name:string;unit?:string;quantity:number;missing?:string}

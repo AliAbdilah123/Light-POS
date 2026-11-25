@@ -1,6 +1,9 @@
 # Changelog
 
 ## 2026-11-25
+- Added custom menu creation during order entry. New items persist to the tenant catalog, are added to the active order, and enter an admin pending-review queue.
+
+## 2026-11-25
 
 - Added 11 parsed menu items from Cilong99's supplied menu image to the `cilong99` tenant across Food, Savory, and Sweet categories, including listed prices, descriptions, and recommendation notes.
 

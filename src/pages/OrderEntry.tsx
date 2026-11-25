@@ -18,7 +18,7 @@ import {
   type Order,
   type SelectedVariation,
 } from '../domain';
-import { API, useStore } from '../store';
+import { API, request, useStore } from '../store';
 import { EmptyState } from '../components/ui/empty-state';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
@@ -40,6 +40,8 @@ export function OrderEntry() {
   const [edit, setEdit] = useState<string>();
   const [notice, setNotice] = useState('');
   const [customError, setCustomError] = useState('');
+  const [creatingMenu, setCreatingMenu] = useState(false);
+  const [creatingMenuBusy, setCreatingMenuBusy] = useState(false);
   const [detail, setDetail] = useState<CatalogItem>();
   const [custom, setCustom] = useState<CatalogItem>();
   const [selections, setSelections] = useState<SelectedVariation[]>([]);
@@ -421,6 +423,26 @@ export function OrderEntry() {
           ) : undefined
         }
       />
+      {creatingMenu && (
+        <Modal title="Add custom menu" onClose={() => !creatingMenuBusy && setCreatingMenu(false)}>
+          {customError && <div role="alert" className="alert bad">{customError}</div>}
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.currentTarget), name = String(fd.get('name')).trim(), price = Number(fd.get('price'));
+            if (!name || !Number.isInteger(price) || price <= 0) return setCustomError('Name and a positive whole-IDR price are required.');
+            setCreatingMenuBusy(true); setCustomError('');
+            try {
+              const result = await request(`/order-menu?business=${encodeURIComponent(s.business)}`, {method:'POST',headers:{'content-type':'application/json','x-csrf-token':s.user.csrfToken},body:JSON.stringify({name,price})});
+              await s.reload(); s.dispatch({type:'add',item:result.menu}); setCreatingMenu(false);
+            } catch (reason) { setCustomError(reason instanceof Error ? reason.message : 'Could not create custom menu.'); }
+            finally { setCreatingMenuBusy(false); }
+          }}>
+            <Input label="Menu name" name="name" autoFocus />
+            <NumberInput label="Price" name="price" min={1} />
+            <div className="form-actions"><Button type="button" disabled={creatingMenuBusy} onClick={() => setCreatingMenu(false)}>Cancel</Button><Button type="submit" variant="primary" disabled={creatingMenuBusy}>{creatingMenuBusy ? 'Creating…' : 'Create and add'}</Button></div>
+          </form>
+        </Modal>
+      )}
       <div className="order-workspace">
         <nav className="category-rail" aria-label="Menu categories">
           {categories.map((c) => (
@@ -430,15 +452,14 @@ export function OrderEntry() {
           ))}
         </nav>
         <section className="product-canvas">
-          <label className="search-box">
-            <Search aria-hidden="true" />
-            <span className="sr-only">Search products</span>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search menu"
-            />
-          </label>
+          <div className="form-actions">
+            <label className="search-box">
+              <Search aria-hidden="true" />
+              <span className="sr-only">Search products</span>
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search menu" />
+            </label>
+            <Button onClick={() => setCreatingMenu(true)}>Add custom menu</Button>
+          </div>
           <div className="product-grid">
             {filtered.map((item) => (
               <div key={item.id} className="product-wrap">

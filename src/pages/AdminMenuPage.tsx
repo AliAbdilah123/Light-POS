@@ -26,7 +26,7 @@ import {
   useMenuImages,
 } from '../services/menuImages';
 
-type Filter = 'Active' | 'Archived' | 'All';
+type Filter = 'Active' | 'Pending review' | 'Archived' | 'All';
 
 export function AdminMenuPage() {
   const s = useStore(),
@@ -53,7 +53,10 @@ export function AdminMenuPage() {
     ),
     filtered = s.data.menus.filter(
       (m) =>
-        (filter === 'All' || m.archived === (filter === 'Archived')) &&
+        (filter === 'All' ||
+          (filter === 'Pending review'
+            ? m.reviewStatus === 'pending'
+            : m.archived === (filter === 'Archived'))) &&
         `${m.name} ${m.category}`.toLowerCase().includes(query.toLowerCase())
     );
   const nameOf = (id: string) =>
@@ -246,7 +249,7 @@ export function AdminMenuPage() {
       {importing && <MenuPhotoImport onClose={() => setImporting(false)} />}
       <div className="toolbar">
         <div className="segment catalog-filter" aria-label="Menu status filter">
-          {(['Active', 'Archived', 'All'] as Filter[]).map((x) => (
+          {(['Active', 'Pending review', 'Archived', 'All'] as Filter[]).map((x) => (
             <button key={x} aria-pressed={filter === x} onClick={() => setFilter(x)}>
               {x}
             </button>
@@ -699,6 +702,7 @@ export function AdminMenuPage() {
                     : 'Available'}
                 </Badge>
                 <h3>{v.name}</h3>
+                {m.reviewStatus === 'pending' && <Badge tone="warn">Pending review</Badge>}
                 <p>
                   {v.category} · {idr(v.price)} · Version {v.version}
                 </p>
@@ -727,6 +731,7 @@ export function AdminMenuPage() {
               </button>
               <div className="card-actions">
                 <Button onClick={() => begin(m.id)}>Edit</Button>
+                {m.reviewStatus === 'pending' && <Button onClick={() => s.update((d) => ({...d, menus:d.menus.map((x) => x.id === m.id ? {...x, reviewStatus:'reviewed'} : x)}), `Reviewed custom menu ${v.name}`)}>Mark reviewed</Button>}
                 <Button
                   onClick={() =>
                     m.archived
